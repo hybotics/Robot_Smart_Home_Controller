@@ -2,7 +2,7 @@ This is my Robot Smart Home Controller project
 ----------------------------------------------
 
 I am building a custom Smart Home controller that will be
-	ya robot. The robot will have many sensors for checking
+	a robot. The robot will have many sensors for checking
 	conditions in the environment. This will include temperature
 	and humidity sensors, various gas sensors, VOC (volatile
 	organic compounds, alcohols, etc. There will be multiple
