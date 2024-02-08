@@ -1,2 +1,3 @@
-# Robot_Smart_Home_Controller
+Robot Smart Home Controller
+----------------------------------------------
 This is my Robot Smart Home Controller project
