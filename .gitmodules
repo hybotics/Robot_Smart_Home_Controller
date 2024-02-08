@@ -1,0 +1,3 @@
+[submodule "razor-9dof-ahrs"]
+	path = razor-9dof-ahrs
+	url = git@github.com:Razor-AHRS/razor-9dof-ahrs.git
