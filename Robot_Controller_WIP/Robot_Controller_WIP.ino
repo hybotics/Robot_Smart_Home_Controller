@@ -109,7 +109,7 @@ String left_zero_pad (String str, uint8_t pad_length) {
 /*
   Get the current date and time
 */
-String timestamp (NTPClient *time_cl, bool time_only=SHOW_DATE_TIME, bool hours_ty=SHOW_12_HOURS, bool long_date=SHOW_LONG_DATE, bool show_seconds=SHOW_SECONDS) {
+String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_1224=SHOW_12_HOURS, bool long_date=SHOW_LONG_DATE, bool show_seconds=SHOW_SECONDS) {
   RTCTime current_time;
   String date_time, date_str = "D*", time_str = "T*";
   String year_str = "Y*", month_str = "M*", day_str = "D*";
@@ -122,10 +122,9 @@ String timestamp (NTPClient *time_cl, bool time_only=SHOW_DATE_TIME, bool hours_
   RTC.getTime(current_time); 
   date_time = String(current_time);
   str_len = date_time.length();
+  position = date_time.indexOf("T");
 
-  if (time_only) {
-    date_time = date_time.substring(str_len - 8, str_len - 1);
-  } else {
+  if (show_full) {
     time_str = date_time.substring(position + 1, str_len);
     position = date_time.indexOf("T");
     date_str = date_time.substring(0, position);
@@ -194,7 +193,9 @@ String timestamp (NTPClient *time_cl, bool time_only=SHOW_DATE_TIME, bool hours_
       am_pm = " AM";
     }
 
-    if (!hours_ty) {
+    if (hours_1224) {
+      time_str = String(hours) + ":" + min_sec_str + am_pm;
+    } else {
       if (hours > 12) {
         hours = hours - 12;
         am_pm = " PM";
@@ -202,7 +203,7 @@ String timestamp (NTPClient *time_cl, bool time_only=SHOW_DATE_TIME, bool hours_
         am_pm = " AM";
       }
 
-      time_str = String(hours) + ":" + min_sec_str + am_pm;
+      time_str = left_zero_pad(String(hours), 2) + ":" + min_sec_str;
     }
 
     if (long_date) {
@@ -212,6 +213,8 @@ String timestamp (NTPClient *time_cl, bool time_only=SHOW_DATE_TIME, bool hours_
     }
 
     date_time = date_str + " at " + time_str;
+  } else {
+    date_time = date_time.substring(position + 1, str_len);
   }
 
   return date_time;
@@ -255,7 +258,6 @@ float to_fahrenheit (float celsius) {
 */
 Adafruit_SHT4x init_sht4x (Adafruit_SHT4x *sht) {
   if (sht->begin()) {
-    Serial.println();
     Serial.print("Found an SHT4x sensor with the serial number 0x");
     Serial.println(sht->readSerial(), HEX);
 
@@ -713,10 +715,10 @@ void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
 void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
-  for (index=0; index < nr_of_resistors; index++) {
-    //  Set the analog pin to INPUT
-    pinMode(RESISTORS[index], INPUT);
-  }
+  //for (index=0; index < nr_of_resistors; index++) {
+  //  //  Set the analog pin to INPUT
+  //  pinMode(RESISTORS[index], INPUT);
+  //}
 
   Serial.println();
   Serial.print("There are ");
@@ -818,12 +820,10 @@ Environment_Data get_temperature(Environment_Data curr_data, Adafruit_SHT4x *sht
 
 void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
-  int16_t reading;
-  float voltage;
 
   for (index=0; index < nr_of_resistors; index++) {
     resistor_readings[index] = analogRead(RESISTORS[index]);
-    resistor_voltages[index] = (5.0 / 4096) * resistor_readings[index];
+    resistor_voltages[index] = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * resistor_readings[index];
 
     Serial.print(RESISTOR_NAMES[index]);
     Serial.print(" = ");
@@ -832,6 +832,7 @@ void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
     if (index < nr_of_resistors - 1) {
       Serial.print(", ");
     }
+    delay(2);
   }
 
   Serial.println();
@@ -868,7 +869,6 @@ void get_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
     }
   }
 
-  Serial.println();
   Serial.println();
 }
 
@@ -1022,7 +1022,7 @@ void setup(void) {
 
     Serial.println();
     Serial.print("Today is ");
-    Serial.println(timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS));
+    Serial.println(timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS));
   
     //  Start the web server
     Serial.println();
@@ -1044,17 +1044,20 @@ void loop(void) {
   bool send_page = true;
   float lux;
   int page_id = 0;
+  unsigned long start_millis, end_millis;
   String HTTP_req, html, date_time;
 
   blink_rgb(green);
 
   looper++;
-  date_time = timestamp(&time_client, SHOW_TIME_ONLY, SHOW_12_HOURS, SHOW_NORMAL_TIME, SHOW_SECONDS);
+  date_time = timestamp(&time_client, SHOW_TIME_ONLY);
   Serial.print(date_time);
   Serial.print(": Loop number ");
   Serial.print(looper);
 
   get_switches();
+  get_resistors();
+  Serial.println();
 
   client = server.available();
 
@@ -1065,6 +1068,7 @@ void loop(void) {
     blink_rgb(blue);
 
     request_count += 1;
+    start_millis = millis();
 
     Serial.print("***** Request #");
     Serial.print(request_count);
@@ -1153,7 +1157,7 @@ void loop(void) {
       //  Send the HTTP response body
       switch (page_id) {
         case PAGE_HOME:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_HOME_NAME);
           html = String(HTML_CONTENT_HOME);
           html.replace("PAGE_HOME_TITLE_MARKER", PAGE_HOME_TITLE);
@@ -1165,7 +1169,7 @@ void loop(void) {
           html.replace("ROBOT_NAME_MARKER", ROBOT_DEVICE_NAME);
           break;
         case PAGE_ENVIRONMENT:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_ENVIRONMENT_NAME);
           html = String(HTML_CONTENT_ENVIRONMENT);
 
@@ -1187,7 +1191,7 @@ void loop(void) {
           }
           break;
         case PAGE_DOOR:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_DOOR_NAME);
           html = String(HTML_CONTENT_DOOR);
 
@@ -1199,7 +1203,7 @@ void loop(void) {
           html.replace("DOOR_STATE_MARKER", "Opened");
           break;
         case PAGE_LED:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_LED_NAME);
           html = String(HTML_CONTENT_LED);
 
@@ -1211,7 +1215,7 @@ void loop(void) {
           html.replace("LED_STATE_MARKER", "Off");
           break;
         case PAGE_ERROR_404:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           html = String(HTML_CONTENT_404);
 
           //  Replace the markers by real values
@@ -1219,7 +1223,7 @@ void loop(void) {
           html.replace("DATESTAMP_MARKER", date_time);
           break;
         case PAGE_ERROR_405:
-          date_time = timestamp(&time_client, SHOW_DATE_TIME, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           html = String(HTML_CONTENT_405);
 
           //  Replace the markers by real values

@@ -37,18 +37,24 @@
   Controls for the timestamp() function
 */
 #define SHOW_TIME_ONLY false
-#define SHOW_DATE_TIME true
+#define SHOW_FULL_DATE true
 
-#define SHOW_24_HOURS false
 #define SHOW_12_HOURS true
+#define SHOW_24_HOURS false
 
-#define SHOW_SHORT_DATE false
 #define SHOW_LONG_DATE true
+#define SHOW_SHORT_DATE false
 
 #define SHOW_NORMAL_TIME false
 #define SHOW_SECONDS true
 
 #define UTC_OFFSET_HRS  -8
+
+/*
+  Maximum voltage to be read from analog pins in volts
+*/
+#define MAXIMUM_ANALOG_VOLTAGE  3.3
+#define ANALOG_RESOLUTION 4096.0
 
 /*
   Defaults for the blink_rgb() routine
@@ -158,9 +164,8 @@ uint8_t RESISTORS[8] = { ANALOG_220_PIN, ANALOG_330_PIN, ANALOG_1K_PIN, ANALOG_2
   ANALOG_5K_PIN, ANALOG_10K_PIN, ANALOG_100K_PIN, ANALOG_1M_PIN };
 
 #define NUMBER_OF_RESISTORS ((sizeof(RESISTORS) / sizeof(uint8_t)))
-uint8_t resistor_readings[NUMBER_OF_RESISTORS];
-String RESISTOR_NAMES[NUMBER_OF_RESISTORS] = { "220 Ohm", "330 Ohm", "1K Ohm", "2K Ohm", "5K Ohm", "10K Ohm",
-  "100K Ohm", "1Meg Ohm" };
+int resistor_readings[NUMBER_OF_RESISTORS];
+String RESISTOR_NAMES[NUMBER_OF_RESISTORS] = { "220", "330", "1K", "2K", "5K", "10K", "100K", "1Meg" };
 float resistor_voltages[NUMBER_OF_RESISTORS];
 
 //  The default color for the RGB LED is Blue
