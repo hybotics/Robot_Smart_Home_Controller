@@ -53,6 +53,7 @@ void print_wifi_status(void) {
   Halt everything - used for unrecoverable errors
 */
 void halt (void) {
+  Serial.println();
   Serial.println("Halting...");
 
   //  Infinite loop
@@ -64,7 +65,7 @@ void halt (void) {
 /*
   Add "0" to the left of a numeric string to the required length
 */
-String left_zero_pad (String str, uint8_t pad_length) {
+String left_pad (String str, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_char=DEFAULT_PAD_STRING) {
   uint8_t str_len, str_index = 0, position = 0;
   String result_str = "", digits = "0123456789", temp_str = "";
   bool is_number = true;
@@ -95,7 +96,7 @@ String left_zero_pad (String str, uint8_t pad_length) {
       result_str = str;
       //  Add the appropriate number of "0" to the left of the string
       for (str_index=1; str_index < pad_length; str_index++) {
-        result_str = "0" + result_str;
+        result_str = pad_char + result_str;
       }
     } else {
       //  Invalid - Non-digit character is present
@@ -175,7 +176,7 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
       
       day_str = day_str + day_suffix;
     } else {
-      day_str = left_zero_pad(day_str, 2);
+      day_str = left_pad(day_str, 2, "0");
     }
 
     str_len = time_str.length();
@@ -203,13 +204,13 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
         am_pm = " AM";
       }
 
-      time_str = left_zero_pad(String(hours), 2) + ":" + min_sec_str;
+      time_str = left_pad(String(hours), 2, "0") + ":" + min_sec_str;
     }
 
     if (long_date) {
       date_str = week_day_str + ", " + long_months[month - 1] + " " + day_str + ", " + year_str;
     } else {
-      date_str = left_zero_pad(month_str, 2) + "/" + day_str + "/" + year_str;
+      date_str = left_pad(month_str, 2, "0") + "/" + day_str + "/" + year_str;
     }
 
     date_time = date_str + " at " + time_str;
@@ -309,6 +310,7 @@ Adafruit_SHT4x init_sht4x (Adafruit_SHT4x *sht) {
 
     Serial.println();
   } else {
+    Serial.println();
     Serial.println("Could not find any SHT4x sensors!");
 
     halt();
@@ -658,7 +660,7 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
     delay(connection_timeout_ms);
   }
 
-  if (connect_count > max_nr_connects) {
+  if (wifi_status != WL_CONNECTED) {
     connected = false;
   } else {
     //  Print connection status
@@ -670,19 +672,26 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
 
 /*
   Initialize the digital LEDs
+
+  For the Portenta C33, LOW = Active (HIGH state)
 */
-void init_LEDs(uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
+void init_LEDs (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
   uint8_t index;
 
   for (index=0; index < nr_of_leds; index++) {
     //  Set the LED pin to OUTPUT
-    pinMode(LEDS[index], OUTPUT);
+    pinMode(LED_PINS[index], INPUT);
+
+    Serial.print("index = ");
+    Serial.println(index);
 
     //  Blink the LED
-    digitalWrite(LEDS[index], LOW);
+    digitalWrite(LED_PINS[index], LOW);
     delay(blink_delay_ms);
-    digitalWrite(LEDS[index], HIGH);
+    digitalWrite(LED_PINS[index], HIGH);
     delay(blink_delay_ms);
+
+    digitalWrite(LED_PINS[index], HIGH);
   }
 
   Serial.println();
@@ -699,8 +708,7 @@ void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
 
   for (index=0; index < nr_of_switches; index++) {
     //  Set the analog pin to INPUT
-    pinMode(SWITCHES[index], INPUT_PULLUP);
-    //digitalWrite(SWITCHES[index], LOW);
+    pinMode(SWITCH_PINS[index], INPUT_PULLUP);
   }
 
   Serial.println();
@@ -715,10 +723,10 @@ void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
 void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
-  //for (index=0; index < nr_of_resistors; index++) {
-  //  //  Set the analog pin to INPUT
-  //  pinMode(RESISTORS[index], INPUT);
-  //}
+  for (index=0; index < nr_of_resistors; index++) {
+    //  Set the analog pin to INPUT
+    pinMode(RESISTOR_PINS[index], INPUT);
+  }
 
   Serial.println();
   Serial.print("There are ");
@@ -818,29 +826,63 @@ Environment_Data get_temperature(Environment_Data curr_data, Adafruit_SHT4x *sht
   return sensors;
 }
 
+String get_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS) {
+  uint8_t index;
+  bool led_state;
+  String html = "";
+
+  for (index=0; index < nr_of_leds; index++) {
+    led_state = digitalRead(LED_PINS[index]);
+
+    //html = html + "LED #" + String(index + 1) + " = ";
+
+    if (led_state) {
+      html = html + "HIGH";
+    } else {
+      html = html + "LOW ";
+    }
+    
+    //if (index < nr_of_leds - 1) {
+    //  html = html + ", ";
+    //}
+  }
+
+  Serial.println();
+  Serial.print("There are ");
+  Serial.print(nr_of_leds);
+  Serial.println(" LEDs (digital output)");
+
+  return html;
+}
+
 void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
+  Serial.print("Resistor readings: ");
+
   for (index=0; index < nr_of_resistors; index++) {
-    resistor_readings[index] = analogRead(RESISTORS[index]);
+    resistor_readings[index] = analogRead(RESISTOR_PINS[index]);
     resistor_voltages[index] = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * resistor_readings[index];
 
     Serial.print(RESISTOR_NAMES[index]);
     Serial.print(" = ");
-    Serial.print(resistor_readings[index]);
+    Serial.print(resistor_readings[index], 5);
 
     if (index < nr_of_resistors - 1) {
       Serial.print(", ");
     }
+
     delay(2);
   }
 
   Serial.println();
 
+  Serial.print("Resistor voltages: ");
+
   for (index=0; index < nr_of_resistors; index++) {
     Serial.print(RESISTOR_NAMES[index]);
     Serial.print(" = ");
-    Serial.print(resistor_voltages[index], 2);
+    Serial.print(resistor_voltages[index], 5);
     Serial.print("V");
 
     if (index < nr_of_resistors - 1) {
@@ -851,25 +893,37 @@ void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   Serial.println();
 }
 
-void get_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+String get_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES, bool send_html=false) {
   uint8_t index;
+  String html;
 
   Serial.println();
   Serial.print("Switch states: ");
 
   for (index=0; index < nr_of_switches; index++) {
-    switch_readings[index] = digitalRead(SWITCHES[index]);
+    switch_readings[index] = digitalRead(SWITCH_PINS[index]);
 
     Serial.print(SWITCH_NAMES[index]);
+
     Serial.print(" = ");
     Serial.print(switch_readings[index]);
 
+    if (send_html) {
+      html = html + SWITCH_NAMES[index] + " = " + switch_readings[index];
+    }
+
     if (index < nr_of_switches - 1) {
+      if (send_html) {
+        html = html + ", ";
+      }
+
       Serial.print(", ");
     }
   }
 
   Serial.println();
+
+  return html;
 }
 
 void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
@@ -890,7 +944,7 @@ void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uin
   }
 }
 
-void setup(void) {
+void setup (void) {
   RTCTime current_time;
   Environment_Data curr_data;
   String firmware_version;
@@ -932,7 +986,6 @@ void setup(void) {
 
     init_resistors();
     get_resistors();
-
     get_switches();
 
     //  Set pins to be outputs
@@ -940,7 +993,7 @@ void setup(void) {
     pinMode(LEDG, OUTPUT);
     pinMode(LEDB, OUTPUT);
 
-    //  Set the RGB LED color to Blue
+    // Blink it Green
     blink_rgb(green, 250, 5);
 
     //  Initialize the SHT4x Temperature and Humidity sensors
@@ -1030,22 +1083,24 @@ void setup(void) {
     server.begin(WEB_SERVER_PORT);
     Serial.println();
   } else {
+    Serial.println();
     Serial.print("Unable to connect to the '");
     Serial.print(ssid);
-    Serial.print("' network!");
+    Serial.println("' network!");
 
     halt();
   }
 }
 
-void loop(void) {
+void loop (void) {
   Environment_Data sensors;
   WiFiClient client;
   bool send_page = true;
   float lux;
-  int page_id = 0;
+  uint8_t index = 0;
+  int page_id = 0, index_pos = 0, start_pos = 0;
   unsigned long start_millis, end_millis;
-  String HTTP_req, html, date_time;
+  String HTTP_req, html = "", date_time = "", temp_html = "", led_html = "";
 
   blink_rgb(green);
 
@@ -1053,10 +1108,10 @@ void loop(void) {
   date_time = timestamp(&time_client, SHOW_TIME_ONLY);
   Serial.print(date_time);
   Serial.print(": Loop number ");
-  Serial.print(looper);
+  Serial.println(looper);
 
   get_switches();
-  get_resistors();
+  //get_resistors();
   Serial.println();
 
   client = server.available();
@@ -1203,6 +1258,7 @@ void loop(void) {
           html.replace("DOOR_STATE_MARKER", "Opened");
           break;
         case PAGE_LED:
+          led_html = get_leds();
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_LED_NAME);
           html = String(HTML_CONTENT_LED);
@@ -1212,7 +1268,16 @@ void loop(void) {
           html.replace("PAGE_LED_NAME_MARKER", PAGE_LED_NAME);
           html.replace("DATESTAMP_MARKER", date_time);
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
-          html.replace("LED_STATE_MARKER", "Off");
+
+          for (index=0; index < NUMBER_OF_LEDS; index++) {
+            temp_html = temp_html + LED_NAMES[index] + " = " + led_html.substring(index * 4, (index + 1) * 4);
+
+            if (index < NUMBER_OF_LEDS - 1) {
+              temp_html = temp_html + ", ";
+            }
+          }
+
+          html.replace("LED_STATE_MARKER", temp_html);
           break;
         case PAGE_ERROR_404:
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);

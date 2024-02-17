@@ -11,7 +11,7 @@
   Web server controls
 */
 #define WEB_SERVER_PORT         80
-#define WEB_SERVER_DELAY_MS     7000
+#define WEB_SERVER_DELAY_MS     1
 #define WEB_SERVER_PAGE         true
 
 #define GET_PAGE_BASE                0

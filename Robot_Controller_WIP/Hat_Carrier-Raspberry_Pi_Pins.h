@@ -6,7 +6,7 @@
 /*
   Arduino MKR Pins
 */
-#define D0              BSP_IO_PORT_01_PIN_05       //  P105
+#define D0              0                           //  PA_8
 #define D1              BSP_IO_PORT_01_PIN_06       //  P106
 #define D3              BSP_IO_PORT_01_PIN_11       //  P111
 #define D4              BSP_IO_PORT_03_PIN_03       //  P303
@@ -64,7 +64,6 @@
 #define D22             A7
 
 
-
 /*
   SDCARD                Arduino Portenta HAT Carrier Pins
 */
@@ -110,10 +109,10 @@
 #define D38             BSP_IO_PORT_05_PIN_12       //  P512
 #define SCL1            D38
 
-#define D39             BSP_IO_PORT_03_PIN_02       //  P302
-#define SDA2            D39                         //  RPi 3 | J2-45
+#define D39             39       //  PH_12
+#define SDA2            D39                         
 
-#define D40             BSP_IO_PORT_03_PIN_01       //  P301
+#define D40             40       //  PH_11
 #define SCL2            D40                         //  RPi 5 | J2-47
 
 /*
@@ -161,7 +160,7 @@
 */
 #define D27               BSP_IO_PORT_00_PIN_09     //  P009
 #define D28               BSP_IO_PORT_04_PIN_09     //  P409
-#define D29               BSP_IO_PORT_05_PIN_05     //  P505
+#define D29               29                        //  PD_4
 #define D30               BSP_IO_PORT_07_PIN_06     //  P706
 #define D31               BSP_IO_PORT_07_PIN_07     //  P707
 #define D32               BSP_IO_PORT_07_PIN_08     //  P708
@@ -198,10 +197,10 @@
 #define CTS2              D52
 
 
-#define D53               BSP_IO_PORT_05_PIN_06     //  P506
-#define TX3               D53                       //  RPi 8 | J2-25
+#define D53               8                         //  PL_3
+#define TX3               D53
 
-#define D54               BSP_IO_PORT_03_PIN_04     //  P304
+#define D54               10                        //  PJ_9
 #define RX3               D54
 
 #define D55               BSP_IO_PORT_05_PIN_03     //  P503
@@ -254,18 +253,25 @@
 /*
   Arduino HAT Carrier Raspberry Pi Connector Pins
 */
+#define RP03              D39
+#define RP03_GPIO23       RP03                       //  RP03_GPIO23 | RP03_SDA1   J2-45
+#define RP_I2C2_SDA       RP03
 
-#define RP03_GPIO23       D39                       //  RP03_GPIO23 | RP03_SDA1   J2-45
+#define RP05              D40                       //  RP05_GPIO3 RP05_SCL1 J2-47
+#define RP_GPIO3          RP05                       //  RP05_GPIO3 RP05_SCL1 J2-47
+#define RP_I2C2_SCL       RP05
 
-#define RP05_GPIO3        D40                       //  RP05_GPIO3 RP05_SCL1 J2-47
+#define RP07              D0                        // RP07_PWM0 | RP07_GEN0 J2-59                                 
+#define RP_PWM0           RP07                       // RP07_PWM0 | RP07_GEN0 J2-59                                 
 
-#define RP07_PWM0         D0                        // RP07_PWM0 | RP07_GEN0 J2-59                                 
+#define RP08              D53                       //  RP08_GPIO14 | RP06_TXD3
+#define RP_GPIO14         RP08                       //  RP08_GPIO14 | RP06_TXD3
 
-#define RP08_GPIO14       D53                       //  RP08_GPIO14 | RP06_TXD3
+#define RP10              D54                       //  RP10_GPIO15 | RP10_RXD0
+#define RP_GPIO15         RP10                       //  RP10_GPIO15 | RP10_RXD0
 
-#define RP10_GPIO15       D54                       //  RP10_GPIO15 | RP10_RXD0
-
-#define RP11_GPIO17       D2                        // RP11_GPIO17 | RP11_GEN0
+#define RP11              D29                       // RP11_GPIO17 | RP11_GEN0
+#define RP_GPIO17         RP11                       // RP11_GPIO17 | RP11_GEN0
 /*
 #define RP13_
 #define RP13_
