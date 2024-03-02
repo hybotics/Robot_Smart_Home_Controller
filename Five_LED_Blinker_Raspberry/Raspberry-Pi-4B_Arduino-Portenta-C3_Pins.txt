@@ -1,0 +1,43 @@
+Created by Dale Weber <dalew@hybotics.io>
+
+Raspberry Pi 4B Pins        Arduino Portenta C33
+------------------------    -------------------------------------------
+01 PWR_33                   N/A      
+02 PWR_50                   N/A
+03 GPIO_02     SDA1         39      GPIO output DOES NOT work
+04 PWR_50      
+05 GPIO_03     SCL1         40      GPIO output DOES NOT work
+06 GND                      N/A         
+07 GPIO_04                   0      (C33 D0)
+08 TX0                      53      GPIO output DOES NOT work
+09 GND                      N/A         
+10 RX0                      54      GPIO output DOES NOT work
+11 GPIO_17                  29      (C33 D2)
+12 GPIO_18                  63      GPIO output works
+13 GPIO_27                  33      GPIO output works
+14 GND                      N/A         
+15 GPIO_22     SPI1_SCLK    80      GPIO output DOES NOT work
+16 GPIO_23                  78      GPIO output DOES NOT work
+17 PWR_33                   N/A      
+18 GPIO_24                  79      GPIO output DOES NOT work
+19 GPIO_10     SPI0_MOSI    46      GPIO output works
+20 GND                      N/A         
+21 GPIO_09     SPI0_MISO    45      GPIO output works
+22 GPIO_25                  01      (C33 D1)
+23 GPIO_11     SPI0_SCLK    47      GPIO output works
+24 GPIO_08     SPI0_CS0     48      GPIO output DOES NOT work
+25 GND                      N/A
+26 GPIO_07     SPI0_CS1     02      GPIO output DOES NOT work
+27 SDA0                     11      I2C EEPROM (Reserved)
+28 SCL0                     12      I2C EEPROM (Reserved)
+29 GPIO_05                  13      GPIO output DOES NOT work
+30 GND                      N/A         
+31 GPIO_06                  03      GPIO output DOES NOT work
+32 GPIO_12                  13      GPIO output DOES NOT work
+33 GPIO_13                  04      GPIO output DOES NOT work
+34 GND                      N/A         
+35 GPIO_19     SPI1_MISO    64      GPIO output works
+36 GPIO_16     SPI1_CS0     05      GPIO output works
+37 GPIO_26                  06      GPIO output works
+38 GPIO_20                  65      GPIO output works
+40 GPIO_21     SPI1_MOSI    66      GPIO output works
