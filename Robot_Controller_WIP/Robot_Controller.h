@@ -60,7 +60,7 @@
 /*
   Defaults for the blink_rgb() routine
 */
-#define DEFAULT_BLINK_RATE_MS     500
+#define DEFAULT_BLINK_RATE_MS     250
 #define DEFAULT_NR_CYCLES         1
 
 /*
@@ -84,7 +84,7 @@
 #define SKETCH_ID_CODE            ROBOT_DEVICE_NAME
 
 /*
-  Circut Digital Pins: LEDs
+  Circuit Digital Pins: LEDs
 */
 #define LED_WHITE_PIN             D1 
 #define LED_BLUE_PIN              D2

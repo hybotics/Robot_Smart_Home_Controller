@@ -35,18 +35,36 @@ Adafruit_SHT4x sht4 = Adafruit_SHT4x();
 #include "Adafruit_VEML7700.h"
 Adafruit_VEML7700 veml = Adafruit_VEML7700();
 
-/*    
-  We are connected now, so print out the connection status:
-*/
-void print_wifi_status(void) {
-  //  Print your board's IP address:
-  Serial.print("Connected! IP Address is ");
-  Serial.println(WiFi.localIP());
+void blink_led (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
+  uint8_t index;
 
-  //  Print the received signal strength:
-  Serial.print("Signal strength (RSSI):");
-  Serial.print(WiFi.RSSI());
-  Serial.println(" dBm");
+  for (index=0; index < nr_cycles; index++) {
+    //  Turn the LED ON
+    digitalWrite(pin, LOW);
+    delay(blink_rate_ms);
+      
+    //  Turn the LED OFF
+    digitalWrite(pin, HIGH);
+    delay(blink_rate_ms);
+  }
+}
+
+void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
+  uint8_t count;
+
+  for (count=0; count<nr_cycles; count++) {
+    digitalWrite(LEDR, color.redB);
+    digitalWrite(LEDG, color.greenB);
+    digitalWrite(LEDB, color.blueB);
+
+    delay(blink_rate_ms);
+
+    digitalWrite(LEDR, HIGH);
+    digitalWrite(LEDG, HIGH);
+    digitalWrite(LEDB, HIGH);
+
+    delay(blink_rate_ms);
+  }
 }
 
 /*
@@ -632,6 +650,20 @@ Adafruit_VEML7700 init_veml7700 (Adafruit_VEML7700 *vm) {
 }
 */
 
+/*    
+  Print out the connection status:
+*/
+void print_wifi_status(void) {
+  //  Print your board's IP address:
+  Serial.print("Connected! IP Address is ");
+  Serial.println(WiFi.localIP());
+
+  //  Print the received signal strength:
+  Serial.print("Signal strength (RSSI):");
+  Serial.print(WiFi.RSSI());
+  Serial.println(" dBm");
+}
+
 bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CONNECTION_TIMEOUT_MS, uint8_t  max_nr_connects=MAX_NR_CONNECTS) {
   bool connected = true;
   uint8_t connect_count = 0;
@@ -670,34 +702,33 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
   return connected;
 }
 
-/*
-  Initialize the digital LEDs
 
-  For the Portenta C33, LOW = Active (HIGH state)
+/*
+  Initialize the digital LED outputs
+
+  For the Portenta C33, LOW = Active (HIGH or ON state)
 */
 void init_LEDs (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
   uint8_t index;
 
+  //  Set the LED pins to OUTPUT
   for (index=0; index < nr_of_leds; index++) {
-    //  Set the LED pin to OUTPUT
-    pinMode(LED_PINS[index], INPUT);
-
-    Serial.print("index = ");
-    Serial.println(index);
-
-    //  Blink the LED
-    digitalWrite(LED_PINS[index], LOW);
-    delay(blink_delay_ms);
+    //  Set the LED pins to OUTPUT
+    pinMode(LED_PINS[index], OUTPUT);
     digitalWrite(LED_PINS[index], HIGH);
-    delay(blink_delay_ms);
+  }
 
-    digitalWrite(LED_PINS[index], HIGH);
+  //  Blink each of the LEDs
+  for (index=0; index < nr_of_leds; index++) {
+    blink_led(LED_PINS[index]);
+
+    delay(500);
   }
 
   Serial.println();
   Serial.print("There are ");
   Serial.print(nr_of_leds);
-  Serial.println(" LEDs (digital output)");
+  Serial.println(" LEDs (digital OUTPUT)");
 }
 
 /*
@@ -926,24 +957,6 @@ String get_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES, bool send_html=fa
   return html;
 }
 
-void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
-  uint8_t count;
-
-  for (count=0; count<nr_cycles; count++) {
-    digitalWrite(LEDR, color.redB);
-    digitalWrite(LEDG, color.greenB);
-    digitalWrite(LEDB, color.blueB);
-
-    delay(blink_rate_ms);
-
-    digitalWrite(LEDR, HIGH);
-    digitalWrite(LEDG, HIGH);
-    digitalWrite(LEDB, HIGH);
-
-    delay(blink_rate_ms);
-  }
-}
-
 void setup (void) {
   RTCTime current_time;
   Environment_Data curr_data;
@@ -1104,15 +1117,18 @@ void loop (void) {
 
   blink_rgb(green);
 
+/*
+
   looper++;
   date_time = timestamp(&time_client, SHOW_TIME_ONLY);
+  
   Serial.print(date_time);
   Serial.print(": Loop number ");
   Serial.println(looper);
 
   get_switches();
-  //get_resistors();
   Serial.println();
+*/
 
   client = server.available();
 
