@@ -2,6 +2,7 @@
  */
 
 //#include  "Hat_Carrier-Raspberry_Pi_Pins.h"
+#include  "RaspberryPi_to_Portenta_C33.h"
 
 #include  "Secrets.h"
 #include  "Robot_Controller.h"
@@ -9,8 +10,10 @@
 #include  "WebServerControl.h"
 
 #include  "index.h"
-#include  "door.h"
-#include  "led.h"
+#include  "potentiometer.h"
+#include  "light.h"
+#include  "imu.h"
+#include  "switches.h"
 #include  "error_404.h"
 #include  "error_405.h"
 
@@ -49,6 +52,19 @@ void blink_led (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_
   }
 }
 
+/*
+  Halt everything - used for unrecoverable errors
+*/
+void halt (void) {
+  Serial.println();
+  Serial.println("Halting...");
+
+  //  Infinite loop
+  while (true) {
+    delay(1);
+  }
+}
+
 void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
   uint8_t count;
 
@@ -68,15 +84,36 @@ void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uin
 }
 
 /*
-  Halt everything - used for unrecoverable errors
+  Blink an LED on the selected pin.
 */
-void halt (void) {
-  Serial.println();
-  Serial.println("Halting...");
+void blink_led_c33 (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
+  uint8_t index;
 
-  //  Infinite loop
-  while (true) {
-    delay(1);
+  for (index=0; index < nr_cycles; index++) {
+    //  Turn the LED ON
+    digitalWrite(pin, LOW);
+    delay(blink_rate_ms);
+      
+    //  Turn the LED OFF
+    digitalWrite(pin, HIGH);
+    delay(blink_rate_ms);
+  }
+}
+
+/*
+  Blink an LED on the selected pin.
+*/
+void blink_led_raspi (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
+  uint8_t index;
+
+  for (index=0; index < nr_cycles; index++) {
+    //  Turn the LED ON
+    digitalWrite(pin, HIGH);
+    delay(blink_rate_ms);
+      
+    //  Turn the LED OFF
+    digitalWrite(pin, LOW);
+    delay(blink_rate_ms);
   }
 }
 
@@ -702,13 +739,37 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
   return connected;
 }
 
+/*
+  Set the LEDs according to the states of the switches.
+*/
+bool set_leds (uint8_t nr_of_switches=NUMBER_OF_SWITCHES, uint8_t nr_of_leds=NUMBER_OF_LEDS) {
+  uint8_t index;
+  bool result = true;
+
+  if (nr_of_switches == nr_of_leds) {
+    for (index=0; index < nr_of_switches; index++) {
+      //Serial.print("index = ");
+      //Serial.print(index);
+      //Serial.print(", switch state = ");
+      //Serial.println(SWITCH_READINGS[index]);
+
+      if (SWITCH_READINGS[index]) {
+        digitalWrite(LED_PINS[index], LOW);
+      } else {
+        digitalWrite(LED_PINS[index], HIGH);
+      }
+    }
+  } else {
+    result = false;
+  }
+}
 
 /*
   Initialize the digital LED outputs
 
   For the Portenta C33, LOW = Active (HIGH or ON state)
 */
-void init_LEDs (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
+void init_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
   uint8_t index;
 
   //  Set the LED pins to OUTPUT
@@ -716,36 +777,32 @@ void init_LEDs (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAUL
     //  Set the LED pins to OUTPUT
     pinMode(LED_PINS[index], OUTPUT);
     digitalWrite(LED_PINS[index], HIGH);
-  }
 
-  //  Blink each of the LEDs
-  for (index=0; index < nr_of_leds; index++) {
-    blink_led(LED_PINS[index]);
-
-    delay(500);
+    //  Blink each of the LEDs
+    blink_led_c33(LED_PINS[index]);
+    delay(100);
   }
 
   Serial.println();
   Serial.print("There are ");
   Serial.print(nr_of_leds);
-  Serial.println(" LEDs (digital OUTPUT)");
+  Serial.println(" LEDs (Digital Output)");
 }
 
 /*
-  Initialize the analog pins for the resistors
+  Initialize the digital pins for the switches
 */
 void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   uint8_t index;
 
   for (index=0; index < nr_of_switches; index++) {
     //  Set the analog pin to INPUT
-    pinMode(SWITCH_PINS[index], INPUT_PULLUP);
+    pinMode(SWITCH_PINS[index], INPUT_PULLDOWN);
   }
 
-  Serial.println();
   Serial.print("There are ");
   Serial.print(nr_of_switches);
-  Serial.println(" switches (digital input)");
+  Serial.println(" switches (Digital Input)");
 }
 
 /*
@@ -759,10 +816,9 @@ void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
     pinMode(RESISTOR_PINS[index], INPUT);
   }
 
-  Serial.println();
   Serial.print("There are ");
   Serial.print(nr_of_resistors);
-  Serial.println(" resistors (analog input)");
+  Serial.println(" resistors (Analog Input)");
 }
 
 /*
@@ -770,13 +826,17 @@ void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
 */
 Environment_Data check_data (Environment_Data curr_data) {
   Environment_Data result;
-  Three_Axis triple = {0.0, 0.0, 0.0};
+  Three_Axis xyz;
 
   //  If we have current data, copy it
   if (curr_data.valid) {
     //  Save existing data
     result = curr_data;
   } else {
+    xyz.x = 0.0;
+    xyz.y = 0.0;
+    xyz.z = 0.0;
+
     //  Initialize data structure
     result.valid = false;
 
@@ -784,11 +844,11 @@ Environment_Data check_data (Environment_Data curr_data) {
     result.fahrenheit = 0.0;
     result.humidity = 0.0;
 
-    result.accelerometer = triple;
-    result.gyroscope = triple;
+    result.accelerometer = xyz;
+    result.gyroscope = xyz;
     result.temperature = 0.0;
   
-    result.magnetometer = triple;
+    result.magnetometer = xyz;
   }
 
   return result;
@@ -810,6 +870,13 @@ Environment_Data get_lis3mdl (Environment_Data curr_data, Adafruit_LIS3MDL *lis3
   sensors.magnetometer.z = event.magnetic.z;
 
   return sensors;
+}
+
+/*
+  Format the X, Y, and Z readings for output
+*/
+String imu_format_xyz_html (Three_Axis readings) {
+  return "<SPAN STYLE=\"color: yellow\">x</SPAN> = <SPAN STYLE=\"color: green\">" + String(readings.x) + "</SPAN>, <SPAN STYLE=\"color: yellow\">y</SPAN> = <SPAN STYLE=\"color: green\">" + String(readings.y) + "</SPAN>, <SPAN STYLE=\"color: yellow\">z</SPAN> = <SPAN STYLE=\"color: green\">" + String(readings.z) + "</SPAN>";
 }
 
 /*
@@ -857,47 +924,21 @@ Environment_Data get_temperature(Environment_Data curr_data, Adafruit_SHT4x *sht
   return sensors;
 }
 
-String get_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS) {
-  uint8_t index;
-  bool led_state;
-  String html = "";
-
-  for (index=0; index < nr_of_leds; index++) {
-    led_state = digitalRead(LED_PINS[index]);
-
-    //html = html + "LED #" + String(index + 1) + " = ";
-
-    if (led_state) {
-      html = html + "HIGH";
-    } else {
-      html = html + "LOW ";
-    }
-    
-    //if (index < nr_of_leds - 1) {
-    //  html = html + ", ";
-    //}
-  }
-
-  Serial.println();
-  Serial.print("There are ");
-  Serial.print(nr_of_leds);
-  Serial.println(" LEDs (digital output)");
-
-  return html;
-}
-
-void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
+/*
+  Read resistor voltages
+*/
+void read_resistors (uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
   Serial.print("Resistor readings: ");
 
   for (index=0; index < nr_of_resistors; index++) {
-    resistor_readings[index] = analogRead(RESISTOR_PINS[index]);
-    resistor_voltages[index] = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * resistor_readings[index];
+    RESISTOR_READINGS[index] = analogRead(RESISTOR_PINS[index]);
+    RESISTOR_VOLTAGES[index] = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * RESISTOR_READINGS[index];
 
     Serial.print(RESISTOR_NAMES[index]);
     Serial.print(" = ");
-    Serial.print(resistor_readings[index], 5);
+    Serial.print(RESISTOR_VOLTAGES[index], 5);
 
     if (index < nr_of_resistors - 1) {
       Serial.print(", ");
@@ -913,7 +954,7 @@ void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   for (index=0; index < nr_of_resistors; index++) {
     Serial.print(RESISTOR_NAMES[index]);
     Serial.print(" = ");
-    Serial.print(resistor_voltages[index], 5);
+    Serial.print(RESISTOR_VOLTAGES[index], 5);
     Serial.print("V");
 
     if (index < nr_of_resistors - 1) {
@@ -924,47 +965,70 @@ void get_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   Serial.println();
 }
 
-String get_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES, bool send_html=false) {
+void show_switches (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   uint8_t index;
-  String html;
 
-  Serial.println();
   Serial.print("Switch states: ");
 
   for (index=0; index < nr_of_switches; index++) {
-    switch_readings[index] = digitalRead(SWITCH_PINS[index]);
-
     Serial.print(SWITCH_NAMES[index]);
-
     Serial.print(" = ");
-    Serial.print(switch_readings[index]);
 
-    if (send_html) {
-      html = html + SWITCH_NAMES[index] + " = " + switch_readings[index];
+    if (SWITCH_READINGS[index]) {
+      Serial.print("ON");
+    } else {
+      Serial.print("OFF");
     }
 
     if (index < nr_of_switches - 1) {
-      if (send_html) {
-        html = html + ", ";
-      }
-
       Serial.print(", ");
     }
   }
 
   Serial.println();
+}
+
+/*
+  Return the HTML for the switches and their states (ON or OFF)
+*/
+String switch_format_html (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+  uint8_t index;
+  String html = "", state;
+
+  for (index=0; index < nr_of_switches; index++) {
+    if (SWITCH_READINGS[index]) {
+      state = "<SPAN style=\"color: green\">ON</SPAN>";
+    } else {
+      state ="<SPAN style=\"color: magenta\">OFF</SPAN>";
+    }
+
+    html = html + "<SPAN style=\"color: yellow\">" + SWITCH_NAMES[index] + "</SPAN> = " + state;
+
+    if (index < nr_of_switches - 1) {
+      html = html + ", ";
+    }
+  }
 
   return html;
 }
 
+float read_veml7700(Adafruit_VEML7700 *vm) {
+  return 0.0;
+}
+
+void read_switches (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+  uint8_t index;
+  String html;
+
+  for (index=0; index < nr_of_switches; index++) {
+    SWITCH_READINGS[index] = digitalRead(SWITCH_PINS[index]);
+  }
+}
+
 void setup (void) {
   RTCTime current_time;
-  Environment_Data curr_data;
   String firmware_version;
   bool connected;
-
-  //  Force initialization of the sensor data structure
-  curr_data.valid = false;
 
   //  Initialize serial and wait for the port to open:
   Serial.begin(115200);
@@ -990,7 +1054,10 @@ void setup (void) {
   connected = connect_to_wifi(ssid, passwd);
 
   if (connected) {
-    init_LEDs();
+    // Blink it Green because we are connected
+    blink_rgb(green, 100, 2);
+
+    init_leds();
 
     init_switches();
 
@@ -998,16 +1065,17 @@ void setup (void) {
     analogReadResolution(12);
 
     init_resistors();
-    get_resistors();
-    get_switches();
+    //read_resistors();
+    read_switches();
 
-    //  Set pins to be outputs
+    //  Initialize the Raspberry Pi LED
+    pinMode(LED_RASPI_PIN, OUTPUT);
+    blink_led_raspi(LED_RASPI_PIN, 100, 2);
+
+    //  Initialize the RGB LED - Set pins to be outputs
     pinMode(LEDR, OUTPUT);
     pinMode(LEDG, OUTPUT);
     pinMode(LEDB, OUTPUT);
-
-    // Blink it Green
-    blink_rgb(green, 250, 5);
 
     //  Initialize the SHT4x Temperature and Humidity sensors
     if (USING_SHT45_TEMP) {
@@ -1108,26 +1176,52 @@ void setup (void) {
 void loop (void) {
   Environment_Data sensors;
   WiFiClient client;
-  bool send_page = true;
-  float lux;
+  bool send_page = true, first_run = true;
+  float lux, potentiometer_voltage;
+  uint16_t potentiometer_reading;
   uint8_t index = 0;
   int page_id = 0, index_pos = 0, start_pos = 0;
   unsigned long start_millis, end_millis;
   String HTTP_req, html = "", date_time = "", temp_html = "", led_html = "";
+  String potentiometer_units;
 
-  blink_rgb(green);
+  if (first_run) {
+    sensors.valid = false;
 
-/*
+    sensors = check_data(sensors);
+    sensors.valid = true;
+    first_run = false;
+  }
 
+  blink_rgb(blue);
+  blink_led_raspi(LED_RASPI_PIN, 100, 2);
+
+  Serial.println();
+  Serial.print("Loop #");
   looper++;
-  date_time = timestamp(&time_client, SHOW_TIME_ONLY);
-  
-  Serial.print(date_time);
-  Serial.print(": Loop number ");
   Serial.println(looper);
 
-  get_switches();
-  Serial.println();
+/*
+  //  Read the potentiomenter
+  potentiometer_reading = analogRead(ANALOG_POT_PIN);
+  potentiometer_voltage = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * potentiometer_reading; // * 1000.0;
+
+  //  Print the potentiomenter reading and voltage
+  Serial.print("Potentiometer: Reading = ");
+  Serial.print(potentiometer_reading);
+  Serial.print(", Voltage = ");
+
+  if (potentiometer_voltage < 1.0) {
+    Serial.print(potentiometer_voltage * 1000.0, 2);
+    Serial.println(" mV");
+  } else {
+    Serial.print(potentiometer_voltage, 2);
+    Serial.println(" V");
+  }
+
+  read_switches();
+  show_switches();
+  set_leds();
 */
 
   client = server.available();
@@ -1136,7 +1230,7 @@ void loop (void) {
   if (client) {
     HTTP_req = "";
 
-    blink_rgb(blue);
+    blink_rgb(magenta);
 
     request_count += 1;
     start_millis = millis();
@@ -1178,17 +1272,21 @@ void loop (void) {
     }
 
     // ROUTING
-    // This example supports the following:
+    // This sketch supports the following:
     // - GET /
     // - GET /home
     // - GET /index
     // - GET /index.html
     // - GET /environment
     // - GET /environment.html
-    // - GET /door
-    // - GET /door.html
-    // - GET /led
-    // - GET /led.html
+    // - GET /switches
+    // - GET /switches.html
+    // - GET /potentiometer
+    // - GET /potentiometer.html
+    // - GET /light
+    // - GET /light.html
+    // - GET /imu
+    // - GET /imu.html
 
     page_id = 0;
 
@@ -1200,12 +1298,18 @@ void loop (void) {
       } else if (HTTP_req.indexOf("GET /environment ") > -1 || HTTP_req.indexOf("GET /environment.html ") > -1) {
         Serial.println("Environment Page");
         page_id = PAGE_ENVIRONMENT;
-      } else if (HTTP_req.indexOf("GET /door ") > -1 || HTTP_req.indexOf("GET /door.html ") > -1) {
+      } else if (HTTP_req.indexOf("GET /switches ") > -1 || HTTP_req.indexOf("GET /switches.html ") > -1) {
         Serial.println("Door Page");
-        page_id = PAGE_DOOR;
-      } else if (HTTP_req.indexOf("GET /led ") > -1 || HTTP_req.indexOf("GET /led.html ") > -1) {
-        Serial.println("LED Page");
-        page_id = PAGE_LED;
+        page_id = PAGE_SWITCHES;
+      } else if (HTTP_req.indexOf("GET /potentiometer ") > -1 || HTTP_req.indexOf("GET /potentiometer.html ") > -1) {
+        Serial.println("Potentiometer Page");
+        page_id = PAGE_POTENTIOMETER;
+      } else if (HTTP_req.indexOf("GET /light ") > -1 || HTTP_req.indexOf("GET /light.html ") > -1) {
+        Serial.println("Light Page");
+        page_id = PAGE_LIGHT;
+      } else if (HTTP_req.indexOf("GET /imu ") > -1 || HTTP_req.indexOf("GET /imu.html ") > -1) {
+        Serial.println("IMU Page");
+        page_id = PAGE_IMU;
       } else {  // 404 Not Found
         Serial.println("404 Not Found");
         page_id = PAGE_ERROR_404;
@@ -1261,39 +1365,78 @@ void loop (void) {
             html.replace("HUMIDITY_MARKER", String(sensors.humidity));
           }
           break;
-        case PAGE_DOOR:
+        case PAGE_SWITCHES:
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          Serial.println(PAGE_DOOR_NAME);
-          html = String(HTML_CONTENT_DOOR);
-
-          //  Replace the marker by a real value
-          html.replace("PAGE_DOOR_TITLE_MARKER", PAGE_DOOR_TITLE);
-          html.replace("PAGE_DOOR_NAME_MARKER", PAGE_DOOR_NAME);
-          html.replace("DATESTAMP_MARKER", date_time);
-          html.replace("REQUEST_COUNTER_MARKER", String(request_count));
-          html.replace("DOOR_STATE_MARKER", "Opened");
-          break;
-        case PAGE_LED:
-          led_html = get_leds();
-          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          Serial.println(PAGE_LED_NAME);
-          html = String(HTML_CONTENT_LED);
+          html = String(HTML_CONTENT_SWITCHES);
+          read_switches();
+          show_switches();
+          set_leds();
+          temp_html = switch_format_html();
 
           //  Replace the markers by real values
-          html.replace("PAGE_LED_TITLE_MARKER", PAGE_LED_TITLE);
-          html.replace("PAGE_LED_NAME_MARKER", PAGE_LED_NAME);
+          html.replace("PAGE_SWITCHES_TITLE_MARKER", PAGE_SWITCHES_TITLE);
+          html.replace("PAGE_SWITCHES_NAME_MARKER", PAGE_SWITCHES_NAME);
+          html.replace("SWITCHES_TEXT_MARKER", temp_html);
           html.replace("DATESTAMP_MARKER", date_time);
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
+          break;
+        case PAGE_POTENTIOMETER:
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          html = String(HTML_CONTENT_POTENTIOMETER);
+          //  Read the potentiomenter
+          potentiometer_reading = analogRead(ANALOG_POT_PIN);
+          potentiometer_voltage = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * potentiometer_reading; // * 1000.0;
 
-          for (index=0; index < NUMBER_OF_LEDS; index++) {
-            temp_html = temp_html + LED_NAMES[index] + " = " + led_html.substring(index * 4, (index + 1) * 4);
+          //  Print the potentiomenter reading and voltage
+          Serial.print("Potentiometer: Reading = ");
+          Serial.print(potentiometer_reading);
+          Serial.print(", Voltage = ");
+          Serial.println(potentiometer_voltage);
 
-            if (index < NUMBER_OF_LEDS - 1) {
-              temp_html = temp_html + ", ";
-            }
+          if (potentiometer_voltage < 1.0) {
+            potentiometer_voltage = potentiometer_voltage * 1000;
+            potentiometer_units = " mV";
+          } else {
+            potentiometer_units = " V";
           }
 
-          html.replace("LED_STATE_MARKER", temp_html);
+          //  Replace the markers by real values
+          html.replace("PAGE_POTENTIOMETER_TITLE_MARKER", PAGE_POTENTIOMETER_TITLE);
+          html.replace("PAGE_POTENTIOMETER_NAME_MARKER", PAGE_POTENTIOMETER_NAME);
+          html.replace("POTENTIOMETER_READING_MARKER", String(potentiometer_reading));
+          html.replace("POTENTIOMETER_VOLTAGE_MARKER", String(potentiometer_voltage));
+          html.replace("POTENTIOMETER_UNITS_MARKER", potentiometer_units);
+          html.replace("DATESTAMP_MARKER", date_time);
+          html.replace("REQUEST_COUNTER_MARKER", String(request_count));
+          break;
+        case PAGE_LIGHT:
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          html = String(HTML_CONTENT_LIGHT);
+          lux = read_veml7700(&veml);
+
+          //  Replace the markers by real values
+          html.replace("PAGE_LIGHT_TITLE_MARKER", PAGE_LIGHT_TITLE);
+          html.replace("PAGE_LIGHT_NAME_MARKER", PAGE_LIGHT_NAME);
+          html.replace("LIGHT_VALUE_MARKER", String(lux));
+          html.replace("DATESTAMP_MARKER", date_time);
+          html.replace("REQUEST_COUNTER_MARKER", String(request_count));
+          break;
+        case PAGE_IMU:
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
+          html = String(HTML_CONTENT_IMU);
+          sensors = get_lsm6dsox(sensors, &sox);
+
+          //  Replace the markers by real values
+          html.replace("PAGE_IMU_TITLE_MARKER", PAGE_IMU_TITLE);
+          html.replace("PAGE_IMU_NAME_MARKER", PAGE_IMU_NAME);
+          temp_html = imu_format_xyz_html(sensors.accelerometer);
+          html.replace("IMU_ACCELEROMETER_MARKER", temp_html);
+          temp_html = imu_format_xyz_html(sensors.gyroscope);
+          html.replace("IMU_GYROSCOPE_MARKER", temp_html);
+          temp_html = imu_format_xyz_html(sensors.magnetometer);
+          html.replace("IMU_MAGNETOMETER_MARKER", temp_html);
+          html.replace("DATESTAMP_MARKER", date_time);
+          html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           break;
         case PAGE_ERROR_404:
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
