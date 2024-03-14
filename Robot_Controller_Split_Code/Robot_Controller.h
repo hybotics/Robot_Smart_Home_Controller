@@ -1,5 +1,3 @@
-//#include  "Hat_Carrier-Raspberry_Pi_Pins.h"
-
 #if defined(ARDUINO_PORTENTA_C33)
 #include <WiFiC3.h>
 #elif defined(ARDUINO_UNOWIFIR4)
@@ -7,8 +5,8 @@
 #endif
 
 #define ROBOT_DEVICE_NAME           "Robot Smart Home Controller"
-#define ROBOT_DEVICE_VERSION        "0.4.2"
-#define ROBOT_DEVICE_DATE           "06-Mar-2024"
+#define ROBOT_DEVICE_VERSION        "0.4.4"
+#define ROBOT_DEVICE_DATE           "13-Mar-2024"
 
 
 //#define SCRIPT_WORK_TEXT            " WIP 2"
@@ -85,7 +83,9 @@
 
 #define PIEZO_BUZZER_PIN          D6          //  PWM
 
-#define LED_RASPI_PIN             GPIO_21
+#define LED_RASPI_HALT_PIN        GPIO_21     //  Red - Unable to connect to WiFi
+#define LED_RASPI_CONNECT_PIN     GPIO_20     //  Green - Connected to WiFi
+#define LED_RASPI_WIFI_PIN        GPIO_16     //  Yellow - Lost WiFi connection
 
 #define ANALOG_POT_PIN            A0
 #define ANALOG_POT_NUMBER          0
@@ -150,8 +150,9 @@ struct ColorRGB {
   bool redB, greenB, blueB;
 };
 
-char ssid[] = WIFI_SSID;  // change your network SSID (name)
-char passwd[] = WIFI_PASSWD;   // change your network password (use for WPA, or use as key for WEP)
+char ssid[] = WIFI_SSID;
+char passwd[] = WIFI_PASSWD;
+bool connected = true;        //  True = Connected to WiFi
 
 String long_months[12] = { "January", "February", "March", "April", "May", "June", "July",
   "August", "September", "October", "November", "December" };
@@ -186,3 +187,5 @@ ColorRGB  red = {LOW, HIGH, HIGH, false, true, true};
 ColorRGB  green = {HIGH, LOW, HIGH, true, false, true};
 ColorRGB  blue = {HIGH, HIGH, LOW, true, true, false};
 ColorRGB  magenta = {LOW, HIGH, LOW, false, true, false};
+ColorRGB  orange = {LOW, LOW, HIGH, false, false, true};
+ColorRGB  yellow = {HIGH, LOW, LOW, false, false, true};

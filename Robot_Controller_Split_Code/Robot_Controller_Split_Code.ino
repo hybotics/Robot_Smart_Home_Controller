@@ -99,8 +99,8 @@ void halt (void) {
 
   //  Infinite loop
   while (true) {
-    blink_rgb(red, 100);
-    delay(1);
+    blink_led_raspi(LED_RASPI_HALT_PIN);
+    delay(100);
   }
 }
 
@@ -369,39 +369,30 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
   if (lis3->begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
     Serial.println("LIS3MDL Found!");
 
-    lis3->setPerformanceMode(LIS3MDL_MEDIUMMODE);
-    Serial.print("Performance mode set to: ");
-    switch (lis3->getPerformanceMode()) {
-      case LIS3MDL_LOWPOWERMODE:
-        Serial.println("Low");
-        break;
-      case LIS3MDL_MEDIUMMODE:
-        Serial.println("Medium");
-        break;
-      case LIS3MDL_HIGHMODE:
-        Serial.println("High");
-        break;
-      case LIS3MDL_ULTRAHIGHMODE:
-        Serial.println("Ultra-High");
-        break;
-    }
+    /*  
+      Magnetometer Performance Mode
 
+      Possible Values:
+        LIS3MDL_LOWPOWERMODE:
+        LIS3MDL_MEDIUMMODE:
+        LIS3MDL_HIGHMODE:
+        LIS3MDL_ULTRAHIGHMODE:
+    */
+    lis3->setPerformanceMode(LIS3MDL_LOWPOWERMODE);
+
+    /*
+      Magnetometer Operation Mode
+
+      Single shot mode will complete conversion and go into power down
+
+      Possible Values:
+        LIS3MDL_CONTINUOUSMODE:
+        LIS3MDL_SINGLEMODE:
+        LIS3MDL_POWERDOWNMODE:
+    */
     lis3->setOperationMode(LIS3MDL_CONTINUOUSMODE);
 
     Serial.print("Operation mode set to: ");
-    // Single shot mode will complete conversion and go into power down
-    switch (lis3->getOperationMode()) {
-      case LIS3MDL_CONTINUOUSMODE:
-        Serial.println("Continuous");
-          break;
-      case LIS3MDL_SINGLEMODE:
-        Serial.println("Single mode");
-        break;
-      case LIS3MDL_POWERDOWNMODE:
-        Serial.println("Power-down");
-        break;
-    }
-
     lis3->setDataRate(LIS3MDL_DATARATE_155_HZ);
     // You can check the datarate by looking at the frequency of the DRDY pin
     Serial.print("Data rate set to: ");
@@ -487,94 +478,65 @@ Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
   if (sx->begin_I2C()) {
     Serial.println("Found the LSM6DSOX IMU!");
 
-/*
-  Possible values:
-      case LSM6DS_ACCEL_RANGE_2_G:
-      case LSM6DS_ACCEL_RANGE_4_G:
-      case LSM6DS_ACCEL_RANGE_8_G:
-      case LSM6DS_ACCEL_RANGE_16_G:
-*/
+    /*
+      Accelerometer Range
+
+      Possible values:
+        LSM6DS_ACCEL_RANGE_2_G:
+        LSM6DS_ACCEL_RANGE_4_G:
+        LSM6DS_ACCEL_RANGE_8_G:
+        LSM6DS_ACCEL_RANGE_16_G:
+    */
     sx->setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
-/*
-  Possible Values:
-    case LSM6DS_RATE_SHUTDOWN:
-    case LSM6DS_RATE_12_5_HZ:
-    case LSM6DS_RATE_26_HZ:
-    case LSM6DS_RATE_52_HZ:
-    case LSM6DS_RATE_104_HZ:
-    case LSM6DS_RATE_208_HZ:
-    case LSM6DS_RATE_416_HZ:
-    case LSM6DS_RATE_833_HZ:
-    case LSM6DS_RATE_1_66K_HZ:
-    case LSM6DS_RATE_3_33K_HZ:
-    case LSM6DS_RATE_6_66K_HZ:
-*/
+
+    /*
+      Accelerometer Data Rate
+
+      Possible Values:
+        LSM6DS_RATE_SHUTDOWN:
+        LSM6DS_RATE_12_5_HZ:
+        LSM6DS_RATE_26_HZ:
+        LSM6DS_RATE_52_HZ:
+        LSM6DS_RATE_104_HZ:
+        LSM6DS_RATE_208_HZ:
+        LSM6DS_RATE_416_HZ:
+        LSM6DS_RATE_833_HZ:
+        LSM6DS_RATE_1_66K_HZ:
+        LSM6DS_RATE_3_33K_HZ:
+        LSM6DS_RATE_6_66K_HZ:
+    */
     sx->setAccelDataRate(LSM6DS_RATE_12_5_HZ);
 
-    Serial.print("Accelerometer data rate set to: ");
+    /*
+      Gyroscope Range
+
+      Possible Values:
+        LSM6DS_GYRO_RANGE_125_DPS:
+        LSM6DS_GYRO_RANGE_250_DPS:
+        LSM6DS_GYRO_RANGE_500_DPS:
+        LSM6DS_GYRO_RANGE_1000_DPS:
+        LSM6DS_GYRO_RANGE_2000_DPS:
+        ISM330DHCX_GYRO_RANGE_4000_DPS:
+    */
     sx->setGyroRange(LSM6DS_GYRO_RANGE_250_DPS );
 
-    Serial.print("Gyroscope range set to: ");
+    /*
+      Gyroscope Data Rate
 
-    switch (sx->getGyroRange()) {
-      case LSM6DS_GYRO_RANGE_125_DPS:
-        Serial.println("125 degrees/s");
-        break;
-      case LSM6DS_GYRO_RANGE_250_DPS:
-        Serial.println("250 degrees/s");
-        break;
-      case LSM6DS_GYRO_RANGE_500_DPS:
-        Serial.println("500 degrees/s");
-        break;
-      case LSM6DS_GYRO_RANGE_1000_DPS:
-        Serial.println("1000 degrees/s");
-        break;
-      case LSM6DS_GYRO_RANGE_2000_DPS:
-        Serial.println("2000 degrees/s");
-        break;
-      case ISM330DHCX_GYRO_RANGE_4000_DPS:
-        break; // unsupported range for the DSOX
-    }
-
+      Possible Values:
+        LSM6DS_RATE_SHUTDOWN:
+        LSM6DS_RATE_12_5_HZ:
+        LSM6DS_RATE_26_HZ:
+        LSM6DS_RATE_52_HZ:
+        LSM6DS_RATE_104_HZ:
+        LSM6DS_RATE_208_HZ:
+        LSM6DS_RATE_416_HZ:
+        LSM6DS_RATE_833_HZ:
+        LSM6DS_RATE_1_66K_HZ:
+        LSM6DS_RATE_3_33K_HZ:
+        LSM6DS_RATE_6_66K_HZ:
+    */
     sx->setGyroDataRate(LSM6DS_RATE_12_5_HZ);
-
-    Serial.print("Gyro data rate set to: ");
-
-    switch (sx->getGyroDataRate()) {
-      case LSM6DS_RATE_SHUTDOWN:
-        Serial.println("0 Hz");
-        break;
-      case LSM6DS_RATE_12_5_HZ:
-        Serial.println("12.5 Hz");
-        break;
-      case LSM6DS_RATE_26_HZ:
-        Serial.println("26 Hz");
-        break;
-      case LSM6DS_RATE_52_HZ:
-        Serial.println("52 Hz");
-        break;
-      case LSM6DS_RATE_104_HZ:
-        Serial.println("104 Hz");
-        break;
-      case LSM6DS_RATE_208_HZ:
-        Serial.println("208 Hz");
-        break;
-      case LSM6DS_RATE_416_HZ:
-        Serial.println("416 Hz");
-        break;
-      case LSM6DS_RATE_833_HZ:
-        Serial.println("833 Hz");
-        break;
-      case LSM6DS_RATE_1_66K_HZ:
-        Serial.println("1.66 KHz");
-        break;
-      case LSM6DS_RATE_3_33K_HZ:
-        Serial.println("3.33 KHz");
-        break;
-      case LSM6DS_RATE_6_66K_HZ:
-        Serial.println("6.66 KHz");
-        break;
-    }
   } else {
     Serial.println();
     Serial.println("Failed to find the LSM6DSOX IMU!");
@@ -655,8 +617,10 @@ void print_wifi_status(void) {
 }
 
 bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CONNECTION_TIMEOUT_MS, uint8_t  max_nr_connects=MAX_NR_CONNECTS) {
-  bool connected = true;
   uint8_t connect_count = 0;
+  IPAddress ip_addr;
+
+  connected = true;       //  Assume we will connect for now
 
   //  Attempt to connect to WiFi network:
   while (wifi_status != WL_CONNECTED and (connect_count < max_nr_connects)) {
@@ -678,11 +642,18 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
     delay(connection_timeout_ms);
   }
 
-  if (wifi_status != WL_CONNECTED) {
-    connected = false;
+  if (wifi_status == WL_CONNECTED) {
+    ip_addr = WiFi.localIP();
+
+    if (ip_addr == "0.0.0.0") {
+      Serial.println("IP Address Invalid");
+      connected = false;
+    } else {
+      //  Print connection status
+      print_wifi_status();
+    }
   } else {
-    //  Print connection status
-    print_wifi_status();
+    connected = false;
   }
 
   return connected;
@@ -771,20 +742,102 @@ void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
 }
 
 /*
+  Initialize the HTML for web pages.
+
+  Doing this pre-initialization of the HTML saves some replacements in the
+    web server code. These are things that do not change in the web page but
+    still have to be easily changeable. This should allow the server to execute a
+    bit faster.
+
+  HTML is in String array PAGE_HTML[]
+*/
+void init_html (uint8_t max_pages=MAX_NUM_PAGES) {
+  uint8_t page_nr;
+  String html;
+
+  Serial.println();
+  Serial.println("Initializing HTML");
+
+  for (page_nr=0; page_nr < max_pages; page_nr++) {
+    switch (page_nr) {
+      case PAGE_HOME:
+        Serial.println("Initializing Home Page");
+
+        html = String(HTML_CONTENT_HOME);
+        html.replace("PAGE_HOME_TITLE_MARKER", PAGE_HOME_TITLE);
+        html.replace("PAGE_HOME_NAME_MARKER", PAGE_HOME_NAME);
+        html.replace("SKETCH_CODE_MARKER", SKETCH_ID_CODE);
+
+        PAGE_HTML[PAGE_HOME] = html;
+        break;
+      case PAGE_ENVIRONMENT:
+        Serial.println("Initializing Environment Page");
+        
+        html = String(HTML_CONTENT_ENVIRONMENT);
+        html.replace("PAGE_ENVIRONMENT_TITLE_MARKER", PAGE_ENVIRONMENT_NAME);
+        html.replace("PAGE_ENVIRONMENT_NAME_MARKER", PAGE_ENVIRONMENT_NAME);
+
+        PAGE_HTML[PAGE_ENVIRONMENT] = html;
+        break;
+      case PAGE_SWITCHES:
+        Serial.println("Initializing Swiches Page");
+        
+        html = String(HTML_CONTENT_SWITCHES);
+        html.replace("PAGE_SWITCHES_TITLE_MARKER", PAGE_SWITCHES_TITLE);
+        html.replace("PAGE_SWITCHES_NAME_MARKER", PAGE_SWITCHES_NAME);
+
+        PAGE_HTML[PAGE_SWITCHES] = html;
+        break;
+      case PAGE_POTENTIOMETER:
+        Serial.println("Initializing Potentiomenter Page");
+        
+        html = String(HTML_CONTENT_POTENTIOMETER);
+        html.replace("PAGE_POTENTIOMETER_TITLE_MARKER", PAGE_POTENTIOMETER_TITLE);
+        html.replace("PAGE_POTENTIOMETER_NAME_MARKER", PAGE_POTENTIOMETER_NAME);
+
+        PAGE_HTML[PAGE_POTENTIOMETER] = html;
+        break;
+      case PAGE_LIGHT:
+        Serial.println("Initializing Light Page");
+        
+        html = String(HTML_CONTENT_LIGHT);
+        html.replace("PAGE_LIGHT_TITLE_MARKER", PAGE_LIGHT_TITLE);
+        html.replace("PAGE_LIGHT_NAME_MARKER", PAGE_LIGHT_NAME);
+
+        PAGE_HTML[PAGE_LIGHT] = html;
+        break;
+      case PAGE_IMU:
+        Serial.println("Initializing IMU Page");
+        
+        html = String(HTML_CONTENT_IMU);
+        html.replace("PAGE_IMU_TITLE_MARKER", PAGE_IMU_TITLE);
+        html.replace("PAGE_IMU_NAME_MARKER", PAGE_IMU_NAME);
+
+        PAGE_HTML[PAGE_IMU] = html;
+        break;
+      default:
+        Serial.println("Page ID out of bounds!");
+        halt();
+        break;
+    }
+  }
+}
+
+/*
   Check the environment data and intialize it if necessary
 */
 Environment_Data check_data (Environment_Data curr_data) {
   Environment_Data result;
-  Three_Axis xyz;
+  Three_Axis filler;
 
   //  If we have current data, copy it
   if (curr_data.valid) {
     //  Save existing data
     result = curr_data;
   } else {
-    xyz.x = 0.0;
-    xyz.y = 0.0;
-    xyz.z = 0.0;
+    filler.x = 0.0;
+    filler.y = 0.0;
+    filler.z = 0.0;
 
     //  Initialize data structure
     result.valid = false;
@@ -793,11 +846,11 @@ Environment_Data check_data (Environment_Data curr_data) {
     result.fahrenheit = 0.0;
     result.humidity = 0.0;
 
-    result.accelerometer = xyz;
-    result.gyroscope = xyz;
+    result.accelerometer = filler;
+    result.gyroscope = filler;
     result.temperature = 0.0;
   
-    result.magnetometer = xyz;
+    result.magnetometer = filler;
   }
 
   return result;
@@ -1001,11 +1054,31 @@ void setup (void) {
   if (firmware_version < WIFI_FIRMWARE_LATEST_VERSION)
     Serial.println("Please upgrade the firmware!");
 
+  //  Initialize the Raspberry Pi LEDs
+  pinMode(LED_RASPI_CONNECT_PIN, OUTPUT);
+  pinMode(LED_RASPI_WIFI_PIN, OUTPUT);
+  pinMode(LED_RASPI_HALT_PIN, OUTPUT);
+
+  digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
+  digitalWrite(LED_RASPI_WIFI_PIN, LOW);
+  digitalWrite(LED_RASPI_HALT_PIN, LOW);
+
+  //  Initialize the RGB LED - Set pins to be outputs
+  pinMode(LEDR, OUTPUT);
+  pinMode(LEDG, OUTPUT);
+  pinMode(LEDB, OUTPUT);
+  //  Turn the RGB LED OFF
+  digitalWrite(LEDR, HIGH);
+  digitalWrite(LEDG, HIGH);
+  digitalWrite(LEDB, HIGH);
+
   connected = connect_to_wifi(ssid, passwd);
 
   if (connected) {
-    // Blink it Green because we are connected
-    blink_rgb(green, 100, 2);
+    // Turn on the WiFi connection LED
+    digitalWrite(LED_RASPI_CONNECT_PIN, HIGH);
+
+    init_html(MAX_NUM_PAGES);
 
     init_leds();
 
@@ -1019,15 +1092,6 @@ void setup (void) {
     //  Initialize the sensors data structure
     sensors.valid = false;
     sensors = check_data(sensors);
-
-    //  Initialize the Raspberry Pi LED
-    pinMode(LED_RASPI_PIN, OUTPUT);
-    blink_led_raspi(LED_RASPI_PIN, 100, 2);
-
-    //  Initialize the RGB LED - Set pins to be outputs
-    pinMode(LEDR, OUTPUT);
-    pinMode(LEDG, OUTPUT);
-    pinMode(LEDB, OUTPUT);
 
     //  Initialize the SHT4x Temperature and Humidity sensors
     if (USING_SHT45_TEMP) {
@@ -1137,7 +1201,6 @@ void loop (void) {
   String potentiometer_units;
 
   blink_rgb(blue);
-  blink_led_raspi(LED_RASPI_PIN, 100, 2);
 
   Serial.println();
   Serial.print("Loop #");
@@ -1275,21 +1338,23 @@ void loop (void) {
       //  Send the HTTP response body
       switch (page_id) {
         case PAGE_HOME:
+          html = PAGE_HTML[PAGE_HOME]; //String(HTML_CONTENT_HOME);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_HOME_NAME);
-          html = String(HTML_CONTENT_HOME);
-          html.replace("PAGE_HOME_TITLE_MARKER", PAGE_HOME_TITLE);
-          html.replace("PAGE_HOME_NAME_MARKER", PAGE_HOME_NAME);
+
+          //  Replace the markers by real values
+          //html.replace("PAGE_HOME_TITLE_MARKER", PAGE_HOME_TITLE);
+          //html.replace("PAGE_HOME_NAME_MARKER", PAGE_HOME_NAME);
+          //html.replace("SKETCH_CODE_MARKER", SKETCH_ID_CODE);
+          //html.replace("ROBOT_PAGE_NAME_MARKER", ROBOT_DEVICE_NAME);
+          //html.replace("ROBOT_NAME_MARKER", ROBOT_DEVICE_NAME);
           html.replace("REQUEST_COUNT_MARKER", String(request_count));
-          html.replace("SKETCH_CODE_MARKER", SKETCH_ID_CODE);
           html.replace("DATESTAMP_MARKER", date_time);
-          html.replace("ROBOT_PAGE_NAME_MARKER", ROBOT_DEVICE_NAME);
-          html.replace("ROBOT_NAME_MARKER", ROBOT_DEVICE_NAME);
           break;
         case PAGE_ENVIRONMENT:
+          html =  PAGE_HTML[PAGE_ENVIRONMENT]; //String(HTML_CONTENT_ENVIRONMENT);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           Serial.println(PAGE_ENVIRONMENT_NAME);
-          html = String(HTML_CONTENT_ENVIRONMENT);
 
           if (USING_SHT45_TEMP) {
             Serial.println("Getting temperature and humidity readings");
@@ -1299,8 +1364,8 @@ void loop (void) {
             Serial.println("Sending sensor readings");
           
             //  Replace the markers by real values
-            html.replace("PAGE_ENVIRONMENT_TITLE_MARKER", PAGE_ENVIRONMENT_NAME);
-            html.replace("PAGE_ENVIRONMENT_NAME_MARKER", PAGE_ENVIRONMENT_NAME);
+            //html.replace("PAGE_ENVIRONMENT_TITLE_MARKER", PAGE_ENVIRONMENT_NAME);
+            //html.replace("PAGE_ENVIRONMENT_NAME_MARKER", PAGE_ENVIRONMENT_NAME);
             html.replace("DATESTAMP_MARKER", date_time);
             html.replace("REQUEST_COUNTER_MARKER", String(request_count));
             html.replace("FAHRENHEIT_MARKER", String(sensors.fahrenheit));
@@ -1309,32 +1374,26 @@ void loop (void) {
           }
           break;
         case PAGE_SWITCHES:
+          html = PAGE_HTML[PAGE_SWITCHES];  //String(HTML_CONTENT_SWITCHES);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          html = String(HTML_CONTENT_SWITCHES);
           read_switches();
           show_switches();
           set_leds();
           temp_html = switch_format_html();
 
           //  Replace the markers by real values
-          html.replace("PAGE_SWITCHES_TITLE_MARKER", PAGE_SWITCHES_TITLE);
-          html.replace("PAGE_SWITCHES_NAME_MARKER", PAGE_SWITCHES_NAME);
+          //html.replace("PAGE_SWITCHES_TITLE_MARKER", PAGE_SWITCHES_TITLE);
+          //html.replace("PAGE_SWITCHES_NAME_MARKER", PAGE_SWITCHES_NAME);
           html.replace("SWITCHES_TEXT_MARKER", temp_html);
           html.replace("DATESTAMP_MARKER", date_time);
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           break;
         case PAGE_POTENTIOMETER:
+          html = PAGE_HTML[PAGE_POTENTIOMETER]; //String(HTML_CONTENT_POTENTIOMETER);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          html = String(HTML_CONTENT_POTENTIOMETER);
           //  Read the potentiomenter
           potentiometer_reading = analogRead(ANALOG_POT_PIN);
           potentiometer_voltage = (MAXIMUM_ANALOG_VOLTAGE / ANALOG_RESOLUTION) * potentiometer_reading; // * 1000.0;
-
-          //  Print the potentiomenter reading and voltage
-          Serial.print("Potentiometer: Reading = ");
-          Serial.print(potentiometer_reading);
-          Serial.print(", Voltage = ");
-          Serial.println(potentiometer_voltage);
 
           if (potentiometer_voltage < 1.0) {
             potentiometer_voltage = potentiometer_voltage * 1000;
@@ -1344,8 +1403,8 @@ void loop (void) {
           }
 
           //  Replace the markers by real values
-          html.replace("PAGE_POTENTIOMETER_TITLE_MARKER", PAGE_POTENTIOMETER_TITLE);
-          html.replace("PAGE_POTENTIOMETER_NAME_MARKER", PAGE_POTENTIOMETER_NAME);
+          //html.replace("PAGE_POTENTIOMETER_TITLE_MARKER", PAGE_POTENTIOMETER_TITLE);
+          //html.replace("PAGE_POTENTIOMETER_NAME_MARKER", PAGE_POTENTIOMETER_NAME);
           html.replace("POTENTIOMETER_READING_MARKER", String(potentiometer_reading));
           html.replace("POTENTIOMETER_VOLTAGE_MARKER", String(potentiometer_voltage));
           html.replace("POTENTIOMETER_UNITS_MARKER", potentiometer_units);
@@ -1353,25 +1412,25 @@ void loop (void) {
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           break;
         case PAGE_LIGHT:
+          html = PAGE_HTML[PAGE_LIGHT]; //String(HTML_CONTENT_LIGHT);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          html = String(HTML_CONTENT_LIGHT);
           lux = read_veml7700(&veml);
 
           //  Replace the markers by real values
-          html.replace("PAGE_LIGHT_TITLE_MARKER", PAGE_LIGHT_TITLE);
-          html.replace("PAGE_LIGHT_NAME_MARKER", PAGE_LIGHT_NAME);
+          //html.replace("PAGE_LIGHT_TITLE_MARKER", PAGE_LIGHT_TITLE);
+          //html.replace("PAGE_LIGHT_NAME_MARKER", PAGE_LIGHT_NAME);
           html.replace("LIGHT_VALUE_MARKER", String(lux));
           html.replace("DATESTAMP_MARKER", date_time);
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           break;
         case PAGE_IMU:
+          html = PAGE_HTML[PAGE_IMU]; //String(HTML_CONTENT_IMU);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          html = String(HTML_CONTENT_IMU);
           sensors = get_lsm6dsox(sensors, &sox);
 
           //  Replace the markers by real values
-          html.replace("PAGE_IMU_TITLE_MARKER", PAGE_IMU_TITLE);
-          html.replace("PAGE_IMU_NAME_MARKER", PAGE_IMU_NAME);
+          //html.replace("PAGE_IMU_TITLE_MARKER", PAGE_IMU_TITLE);
+          //html.replace("PAGE_IMU_NAME_MARKER", PAGE_IMU_NAME);
           temp_html = imu_format_xyz_html(sensors.accelerometer);
           html.replace("IMU_ACCELEROMETER_MARKER", temp_html);
           temp_html = imu_format_xyz_html(sensors.gyroscope);
@@ -1382,16 +1441,16 @@ void loop (void) {
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           break;
         case PAGE_ERROR_404:
-          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           html = String(HTML_CONTENT_404);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
 
           //  Replace the markers by real values
           html.replace("REQUEST_COUNTER_MARKER", String(request_count));
           html.replace("DATESTAMP_MARKER", date_time);
           break;
         case PAGE_ERROR_405:
-          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
           html = String(HTML_CONTENT_405);
+          date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
 
           //  Replace the markers by real values
           html.replace("DATESTAMP_MARKER", date_time);
@@ -1427,6 +1486,31 @@ void loop (void) {
     Serial.println("Closing connection");
     Serial.println();
     client.stop();
+  }
+
+  //  Check to be sure we still have a WiFi connection
+  wifi_status = WiFi.status();
+
+  if ((wifi_status != WL_CONNECTED) and (wifi_status != WL_IDLE_STATUS)) {
+    Serial.println("Lost WiFi connection - attempting to reconnect!");
+    digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
+    digitalWrite(LED_RASPI_WIFI_PIN, HIGH);
+    connected = connect_to_wifi(ssid, passwd);
+
+    if (connected) {
+      digitalWrite(LED_RASPI_CONNECT_PIN, HIGH);
+      digitalWrite(LED_RASPI_WIFI_PIN, LOW);
+    } else {
+      Serial.println();
+      Serial.print("Unable to reconnect to the '");
+      Serial.print(ssid);
+      Serial.println("' network!");
+
+      digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
+      digitalWrite(LED_RASPI_WIFI_PIN, LOW);
+
+      halt();
+    }
   }
 
   //  Give the web browser time to receive the data
