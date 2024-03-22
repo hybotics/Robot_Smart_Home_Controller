@@ -10,8 +10,14 @@
 
 #define PIEZO_BUZZER_PIN          D6          //  PWM
 
-#define LED_RASPI_PIN             GPIO_03
+//  Raspberry Pi Inputs
+#define SWITCH_RASPI_WHITE_PIN    GPIO_07
 
+//  Raspberry Pi Outputs
+#define LED_RASPI_HALT_PIN        GPIO_21     //  Red - Unable to connect to WiFi
+#define LED_RASPI_CONNECT_PIN     GPIO_20     //  Green - Connected to WiFi
+#define LED_RASPI_WIFI_PIN        GPIO_19     //  Yellow - Lost WiFi connection
+#define LED_RASPI_WHITE_PIN       GPIO_26
 /*
   Circuit Digital Pins: LEDs
 */

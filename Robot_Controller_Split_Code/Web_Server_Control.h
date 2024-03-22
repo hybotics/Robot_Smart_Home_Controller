@@ -1,5 +1,10 @@
 /*
+ *
+ *  Copyright (c) by Dale Weber <hybotics@hybotics.dev> 2024
  */
+
+#ifndef WEB_SERVER_CONTROL_H
+#define WEB_SERVER_CONTROL_H
 
 #if defined(ARDUINO_PORTENTA_C33)
 #include <WiFiC3.h>
@@ -11,7 +16,7 @@
   Web server controls
 */
 #define WEB_SERVER_PORT               80
-#define WEB_SERVER_DELAY_MS           10
+#define WEB_SERVER_DELAY_MS           1
 #define WEB_SERVER_PAGE               true
 
 #define GET_PAGE_BASE                 0
@@ -54,3 +59,5 @@
 WiFiServer server(WEB_SERVER_PORT);
 
 String PAGE_HTML[MAX_NUM_PAGES];
+
+#endif

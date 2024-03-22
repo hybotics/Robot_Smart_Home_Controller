@@ -6,6 +6,9 @@
 
 #include  "RaspberryPi_to_Portenta_C33.h"
 #include  "Five_LED_Blinker.h"
+#include  "Wire.h"
+
+TwoWire RSHC_I2C(SCL1, SDA1);
 
 /*
   Halt everything - used for unrecoverable errors
@@ -76,7 +79,7 @@ int8_t switch_state (uint8_t sw_nr) {
 /*
   Set the LEDs according to the states of the switches.
 */
-bool set_leds (uint8_t nr_of_switches=NUMBER_OF_SWITCHES, uint8_t nr_of_leds=NUMBER_OF_LEDS) {
+bool set_leds_c33 (uint8_t nr_of_switches=NUMBER_OF_SWITCHES, uint8_t nr_of_leds=NUMBER_OF_LEDS) {
   uint8_t index;
   bool result = true;
 
@@ -119,7 +122,7 @@ String switch_text (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   return html;
 }
 
-void show_switches (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+void show_switches_c33 (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   uint8_t index;
 
   Serial.print("Switch states: ");
@@ -142,7 +145,7 @@ void show_switches (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   Serial.println();
 }
 
-void read_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+void read_switches_c33 (uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   uint8_t index;
   String html;
 
@@ -154,7 +157,7 @@ void read_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
 /*
   Read resistor voltages
 */
-void read_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
+void read_resistors_c33(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
   Serial.print("Resistor readings: ");
@@ -197,7 +200,7 @@ void read_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
 
   For the Portenta C33, LOW = Active (HIGH or ON state)
 */
-void init_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
+void init_leds_c33 (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAULT_BLINK_RATE_MS) {
   uint8_t index;
 
   //  Set the LED pins to OUTPUT
@@ -218,10 +221,26 @@ void init_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAUL
   Serial.println(" LEDs (Digital Output)");
 }
 
+void init_leds_raspi (void) {
+  //  Initialize the Raspberry Pi GPIO pins
+  pinMode(LED_RASPI_CONNECT_PIN, OUTPUT);
+  digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
+  blink_led_raspi(LED_RASPI_CONNECT_PIN, 250, 3);
+  pinMode(LED_RASPI_WIFI_PIN, OUTPUT);
+  digitalWrite(LED_RASPI_WIFI_PIN, LOW);
+  blink_led_raspi(LED_RASPI_WIFI_PIN, 250, 3);
+  pinMode(LED_RASPI_HALT_PIN, OUTPUT);
+  digitalWrite(LED_RASPI_HALT_PIN, LOW);
+  blink_led_raspi(LED_RASPI_HALT_PIN, 250, 3);
+  pinMode(LED_RASPI_WHITE_PIN, OUTPUT);
+  digitalWrite(LED_RASPI_WHITE_PIN, LOW);
+  blink_led_raspi(LED_RASPI_WHITE_PIN, 250, 3);
+}
+
 /*
   Initialize the digital pins for the switches
 */
-void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
+void init_switches_c33(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   uint8_t index;
 
   for (index=0; index < nr_of_switches; index++) {
@@ -234,10 +253,14 @@ void init_switches(uint8_t nr_of_switches=NUMBER_OF_SWITCHES) {
   Serial.println(" switches (Digital Input)");
 }
 
+void init_switches_raspi (void) {
+  pinMode(SWITCH_RASPI_WHITE_PIN, INPUT_PULLDOWN);
+}
+
 /*
   Initialize the analog pins for the resistors
 */
-void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
+void init_resistors_c33 (uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
   uint8_t index;
 
   for (index=0; index < nr_of_resistors; index++) {
@@ -251,7 +274,11 @@ void init_resistors(uint8_t nr_of_resistors=NUMBER_OF_RESISTORS) {
 }
 
 //  Setup for the sketch
-void setup(void) {
+void setup (void) {
+  //  Start the I2C bus
+  RSHC_I2C.begin();
+  Wire.begin();
+
   //  Initialize serial and wait for the port to open:
   Serial.begin(115200);
 
@@ -263,17 +290,15 @@ void setup(void) {
   pinMode(PIEZO_BUZZER_PIN, OUTPUT);
   analogWrite(PIEZO_BUZZER_PIN, 40);
 
-  //  Initialize the Raspberry Pi GPIO pin
-  pinMode(LED_RASPI_PIN, OUTPUT);
-  digitalWrite(LED_RASPI_PIN, LOW);
-
-  init_leds();
+  init_leds_c33();
+  init_leds_raspi();
 
   Serial.println();
-  init_switches();
+  init_switches_c33();
+  init_switches_raspi();
 
   Serial.println();
-  init_resistors();
+  //init_resistors_c33();
 }
 
 // the loop function runs over and over again forever
@@ -284,16 +309,13 @@ void loop (void) {
   while(true) {
     looper += 1;
 
-    blink_led_raspi(LED_RASPI_PIN, 100, 5);
-    delay(250);
-
     Serial.println();
     Serial.print("Loop #");
     Serial.println(looper);
 
-    read_switches();
-    show_switches();
-    set_leds();
+    read_switches_c33();
+    show_switches_c33();
+    set_leds_c33();
 
     text = switch_text();
 

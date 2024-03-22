@@ -1,12 +1,20 @@
-/*
- */
-
-//#include  "Hat_Carrier-Raspberry_Pi_Pins.h"
-#include  "RaspberryPi_to_Portenta_C33.h"
+/******************************************************************************************
+ * Code from the original sketch was created by ArduinoGetStarted.com
+ *
+ * This example code is in the public domain
+ *
+ * Tutorial page: https://arduinogetstarted.com/tutorials/arduino-web-server-multiple-pages
+ *******************************************************************************************
+ *  Heavily modifed and extended by Dale Weber <hybotics@hybotics.dev>
+ *
+ *  This is the control sketch for the Robot Smart Home Controller
+ *  Copyright (c) by Dale Weber <hybotics@hybotics.dev> 2024
+ ******************************************************************************************/
 
 #include  "Secrets.h"
 #include  "Robot_Controller.h"
 #include  "Web_Server_Control.h"
+#include  "Arduino_HAT_Carrier.h"
 
 #include  "index.h"
 #include  "Environment.h"
@@ -17,6 +25,21 @@
 #include  "error_404.h"
 #include  "error_405.h"
 
+/*************************
+  Native Arduino Libraries
+*************************/
+
+#include  "Arduino.h"
+#include  "Wire.h"
+
+TwoWire RSHC_I2C(SCL1, SDA1);
+WireAddressMode_t address_mode = ADDRESS_MODE_7_BITS;
+bool prefer_sci = false;
+
+/*************************
+  Third-Party Libraries
+*************************/
+
 //Include the NTP library
 #include <NTPClient.h>
 WiFiUDP Udp; // A UDP instance to let us send and receive packets over UDP
@@ -25,12 +48,14 @@ NTPClient time_client(Udp);
 // Include the RTC library
 #include "RTC.h"
 
-#include <Adafruit_LSM6DSOX.h>
-Adafruit_LSM6DSOX sox;
+#include <Arduino_LSM6DSOX.h>
 
-#include <Adafruit_LIS3MDL.h>
 #include <Adafruit_Sensor.h>
-Adafruit_LIS3MDL lis3;
+
+#include <LIS3MDL.h>
+LIS3MDL::vector<int16_t> m_min = {-32767, -32767, -32767};
+LIS3MDL::vector<int16_t> m_max = {+32767, +32767, +32767};
+LIS3MDL lis3;
 
 #include "Adafruit_SHT4x.h"
 Adafruit_SHT4x sht4 = Adafruit_SHT4x();
@@ -38,6 +63,20 @@ Adafruit_SHT4x sht4 = Adafruit_SHT4x();
 #include "Adafruit_VEML7700.h"
 Adafruit_VEML7700 veml = Adafruit_VEML7700();
 
+/**********************
+  Utility routines
+**********************/
+
+/*
+  Blink the onboard RGB LED with the selected color
+
+  Parameters:
+    color:          a ColorRGB structure that defines the desired color
+    blink_rate_ms:  The blink rate in ms
+    nr_cycles:      The number of times to blink the LED
+
+  Returns:          void
+*/
 void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
   uint8_t count;
 
@@ -57,7 +96,15 @@ void blink_rgb (ColorRGB color, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uin
 }
 
 /*
-  Blink an LED on the selected pin.
+  Blink a standard LED on the selected pin.
+  Pins are active LOW
+
+  Parameters:
+    pin:            The pin the LED is connected to
+    blink_rate_ms:  The blink rate in ms
+    nr_cycles:      The number of times to blink the LED
+
+  Returns:          void
 */
 void blink_led_c33 (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
   uint8_t index;
@@ -74,7 +121,15 @@ void blink_led_c33 (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, ui
 }
 
 /*
-  Blink an LED on the selected Raspberry Pi pin.
+  Blink a standard LED on the selected Raspberry Pi pin.
+  Pins are active HIGH
+
+  Parameters:
+    pin:            The pin the LED is connected to
+    blink_rate_ms:  The blink rate in ms
+    nr_cycles:      The number of times to blink the LED
+
+  Returns:          void
 */
 void blink_led_raspi (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, uint8_t nr_cycles=DEFAULT_NR_CYCLES) {
   uint8_t index;
@@ -92,10 +147,27 @@ void blink_led_raspi (uint8_t pin, uint8_t blink_rate_ms=DEFAULT_BLINK_RATE_MS, 
 
 /*
   Halt everything - used for unrecoverable errors
+
+  Parameters:
+    message:    The message to disaplay on the serial console
+    wifi_halt:  If this is a WiFi connection halt, true
+    wifi_ssid:  If wifi_halt is true, this should be the SSID of the WiFi network
+
+  Returns:      void
 */
-void halt (void) {
+void halt ( char* message, bool wifi_halt=false, char *wifi_ssid=ssid) {
+  Serial.println();
+  Serial.print(message);
+
+  if (wifi_halt) {
+    Serial.print(" ");
+    Serial.print(wifi_ssid);
+  }
+
   Serial.println();
   Serial.println("Halting...");
+
+  digitalWrite(LED_RASPI_WIFI_PIN, LOW);
 
   //  Infinite loop
   while (true) {
@@ -105,9 +177,39 @@ void halt (void) {
 }
 
 /*
-  Add "0" to the left of a numeric string to the required length
+  Do the actual left padding - there is no checking done
+
+  Parameters:
+    str:          The string to be padded
+    numeric_only: True if the string passed must be numeric
+    pad_length:   The length to pad the string to
+    pad_char:     The String character for padding
+
+  Returns:      void
 */
-String left_pad (String str, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_char=DEFAULT_PAD_STRING) {
+String pad_string (String str, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_char=DEFAULT_PAD_STRING) {
+  uint8_t str_index = 0;
+  String result_str = "";
+
+  for (str_index=1; str_index < pad_length; str_index++) {
+    result_str = pad_char + result_str;
+  }
+
+  return result_str; 
+}
+
+/*
+  Left pad a string - works with -unsigned- numeric strings only at this time
+
+  Parameters:
+    str:          The string to be padded
+    numeric_only: True if the string passed must be numeric
+    pad_length:   The length to pad the string to
+    pad_char:     The String character for padding
+
+  Returns:      void
+*/
+String left_pad (String str, bool numeric_only=true, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_char=DEFAULT_PAD_STRING) {
   uint8_t str_len, str_index = 0, position = 0;
   String result_str = "", digits = "0123456789", temp_str = "";
   bool is_number = true;
@@ -117,32 +219,35 @@ String left_pad (String str, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_c
   if (str_len == pad_length) {
     result_str = str;
   } else {
-    //  Scan the string to be sure it is all numeric characters
-    for (str_index=0; str_index < str_len; str_index++) {
-      //  Get the character to check
-      temp_str = str.substring(str_index, str_index + 1);
+    if (numeric_only) {
+      //  Scan the string to be sure it is all numeric characters
+      for (str_index=0; str_index < str_len; str_index++) {
+        //  Get the character to check
+        temp_str = str.substring(str_index, str_index + 1);
 
-      //  See if the character is a digit
-      position = digits.indexOf(temp_str) + 1;
+        //  See if the character is a digit
+        position = digits.indexOf(temp_str) + 1;
 
-      //  Test the character. If position < 0, character is not a digit
-      is_number = (position > 0);
+        //  Test the character. If position < 0, character is not a digit
+        is_number = (position > 0);
 
-      if (!is_number) {
-        //  Found a non-numeric character so break the loop
-        break;
+        if (!is_number) {
+          //  Found a non-numeric character so break the loop
+          break;
+        }
       }
-    }
 
-    if (is_number) {
-      result_str = str;
-      //  Add the appropriate number of "0" to the left of the string
-      for (str_index=1; str_index < pad_length; str_index++) {
-        result_str = pad_char + result_str;
+      if (is_number) {
+        result_str = str;
+        //  Add the appropriate number of pad_char to the left of the string
+        result_str = pad_string(str, pad_length, pad_char);
+      } else {
+        //  Invalid - Non-digit character is present
+        result_str = "**";
       }
     } else {
-      //  Invalid - Non-digit character is present
-      result_str = "**";
+        //  Add the appropriate number of pad_char to the left of the string
+        result_str = pad_string(str, pad_length, pad_char);
     }
   }
 
@@ -150,7 +255,9 @@ String left_pad (String str, uint8_t pad_length=DEFAULT_PAD_LENGTH, String pad_c
 }
 
 /*
-  Get the current date and time
+  Create a date and time stamp of the current time
+
+  Parameters:
 */
 String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_1224=SHOW_12_HOURS, bool long_date=SHOW_LONG_DATE, bool show_seconds=SHOW_SECONDS) {
   RTCTime current_time;
@@ -179,7 +286,13 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
     day_str = date_str.substring(8, str_len);
     day = day_str.toInt();
 
-    week_day_nr = time_cl->getDay();
+    week_day_nr = time_cl->getDay() - 1;
+
+    //  Adjust day for underflow to Sunday
+    if (week_day_nr < 0) {
+      week_day_nr = 0;
+    }
+
     week_day_str = week_days[week_day_nr];
 
     day_str = String(day);
@@ -211,19 +324,34 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
         case 3:
           day_suffix = "rd";
           break;
-        dafault:
+        default:
           day_suffix = "**";
           break;
       }
-      
       day_str = day_str + day_suffix;
     } else {
-      day_str = left_pad(day_str, 2, "0");
+      day_str = left_pad(day_str);
     }
 
     str_len = time_str.length();
     hours_str = time_str.substring(0, 2);
     hours = hours_str.toInt();
+    
+    if (hours_1224) {
+      time_str = left_pad(String(hours)) + ":" + min_sec_str;
+    } else {
+      if (hours == 0) {
+        hours = 12;
+        am_pm = " AM";
+      } else {
+        if (hours > 12) {
+          hours = hours - 12;
+          am_pm = " PM";
+        } else {
+          am_pm = " AM";
+        }
+      }
+    }
 
     if (show_seconds) {
       min_sec_str = time_str.substring(3, str_len);
@@ -231,36 +359,38 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
       min_sec_str = time_str.substring(3, str_len - 3);
     }
 
-    if (hours == 0) {
-      hours = 12;
-      am_pm = " AM";
-    }
-
-    if (hours_1224) {
-      time_str = String(hours) + ":" + min_sec_str + am_pm;
-    } else {
-      if (hours > 12) {
-        hours = hours - 12;
-        am_pm = " PM";
-      } else {
-        am_pm = " AM";
-      }
-
-      time_str = left_pad(String(hours), 2, "0") + ":" + min_sec_str;
-    }
-
     if (long_date) {
       date_str = week_day_str + ", " + long_months[month - 1] + " " + day_str + ", " + year_str;
     } else {
-      date_str = left_pad(month_str, 2, "0") + "/" + day_str + "/" + year_str;
+      date_str = left_pad(month_str) + "/" + left_pad(day_str) + "/" + year_str;
     }
-
+  } else {    
     date_time = date_str + " at " + time_str;
-  } else {
-    date_time = date_time.substring(position + 1, str_len);
   }
 
   return date_time;
+}
+
+RTCTime set_clock (int utc_offset_hrs, NTPClient *time_cl) {
+  RTCTime current_time, time_to_set;
+
+  time_cl->update();
+
+  // Get the current date and time from an NTP server and convert
+  // it to UTC +2 by passing the time zone offset in hours.
+  // You may change the time zone offset to your local one.
+  auto timeZoneOffsetHours = -7;
+  auto unix_time = time_cl->getEpochTime() + (utc_offset_hrs * 3600);
+  Serial.print("Unix time = ");
+  Serial.println(unix_time);
+  time_to_set = RTCTime(unix_time);
+  RTC.setTime(time_to_set);
+
+  // Retrieve the date and time from the RTC and print them
+  RTC.getTime(current_time); 
+  Serial.println("The RTC was just set to: " + String(current_time));
+
+  return current_time;
 }
 
 /*
@@ -271,6 +401,8 @@ String timestamp (NTPClient *time_cl, bool show_full=SHOW_FULL_DATE, bool hours_
 RTCTime set_rtc (int8_t utc_offset_hrs, NTPClient *time_cl) {
   RTCTime current_time, time_to_set;
   uint32_t unix_time;
+
+  time_cl->update();
 
   //  Get the current date and time from an NTP server and convert
   //    it to UTC +2 by passing the time zone offset in hours.
@@ -352,10 +484,7 @@ Adafruit_SHT4x init_sht4x (Adafruit_SHT4x *sht) {
 
     Serial.println();
   } else {
-    Serial.println();
-    Serial.println("Could not find any SHT4x sensors!");
-
-    halt();
+    halt("Could not find any SHT4x sensors!");
   }
 
   return *sht;
@@ -364,11 +493,12 @@ Adafruit_SHT4x init_sht4x (Adafruit_SHT4x *sht) {
 /*
   Initialize the SHT45 Temeprature and Humidity sensor
 */
-Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
+LIS3MDL init_lis3mdl (Environment_Data curr_data, LIS3MDL *lis3) {
   // Try to initialize!
-  if (lis3->begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
+  if (lis3->init()) {          // hardware I2C mode, can pass in address & alt Wire
     Serial.println("LIS3MDL Found!");
 
+    lis3->enableDefault();
     /*  
       Magnetometer Performance Mode
 
@@ -378,7 +508,7 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
         LIS3MDL_HIGHMODE:
         LIS3MDL_ULTRAHIGHMODE:
     */
-    lis3->setPerformanceMode(LIS3MDL_LOWPOWERMODE);
+    //lis3->setPerformanceMode(LIS3MDL_LOWPOWERMODE);
 
     /*
       Magnetometer Operation Mode
@@ -390,13 +520,13 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
         LIS3MDL_SINGLEMODE:
         LIS3MDL_POWERDOWNMODE:
     */
-    lis3->setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    //lis3->setOperationMode(LIS3MDL_CONTINUOUSMODE);
 
-    Serial.print("Operation mode set to: ");
-    lis3->setDataRate(LIS3MDL_DATARATE_155_HZ);
+    //Serial.print("Operation mode set to: ");
+    //lis3->setDataRate(LIS3MDL_DATARATE_155_HZ);
     // You can check the datarate by looking at the frequency of the DRDY pin
-    Serial.print("Data rate set to: ");
-
+    //Serial.print("Data rate set to: ");
+/*
     switch (lis3->getDataRate()) {
       case LIS3MDL_DATARATE_0_625_HZ:
         Serial.println("0.625 Hz");
@@ -434,12 +564,15 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
       case LIS3MDL_DATARATE_1000_HZ:
         Serial.println("1000 Hz");
         break;
+      case default:
+        Serial.println("Invalid value!");
     }
+*/
     
-    lis3->setRange(LIS3MDL_RANGE_4_GAUSS);
+    //lis3->setRange(LIS3MDL_RANGE_4_GAUSS);
 
-    Serial.print("Range set to: ");
-
+    //Serial.print("Range set to: ");
+/*
     switch (lis3->getRange()) {
       case LIS3MDL_RANGE_4_GAUSS:
         Serial.println("+-4 gauss");
@@ -461,10 +594,9 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
                             true, // polarity
                             false, // don't latch
                             true); // enabled!
+*/
   } else {
-    Serial.println("Unable to find the magnetometer!");
-
-    halt();
+    halt("Unable to find and initialize the LIS3MDL magnetometer!");
   }
 
   return *lis3;
@@ -473,11 +605,18 @@ Adafruit_LIS3MDL init_lis3mdl (Adafruit_LIS3MDL *lis3) {
 /*
   Initialize the LSM6DSOX IMU
 */
-Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
+void init_lsm6dsox () {
   //  Initialie the IMU
-  if (sx->begin_I2C()) {
-    Serial.println("Found the LSM6DSOX IMU!");
+  if (IMU.begin()) {
+    Serial.println("Found an LSM6DSOX IMU!");
 
+    Serial.print("Accelerometer sample rate = ");
+    Serial.print(IMU.accelerationSampleRate());
+    Serial.println(" Hz");
+
+    Serial.print("Gyroscope sample rate = ");
+    Serial.print(IMU.gyroscopeSampleRate());
+    Serial.println(" Hz");
     /*
       Accelerometer Range
 
@@ -487,7 +626,7 @@ Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
         LSM6DS_ACCEL_RANGE_8_G:
         LSM6DS_ACCEL_RANGE_16_G:
     */
-    sx->setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
+    //sx->setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
 
     /*
       Accelerometer Data Rate
@@ -505,7 +644,7 @@ Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
         LSM6DS_RATE_3_33K_HZ:
         LSM6DS_RATE_6_66K_HZ:
     */
-    sx->setAccelDataRate(LSM6DS_RATE_12_5_HZ);
+    //sx->setAccelDataRate(LSM6DS_RATE_12_5_HZ);
 
     /*
       Gyroscope Range
@@ -518,7 +657,7 @@ Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
         LSM6DS_GYRO_RANGE_2000_DPS:
         ISM330DHCX_GYRO_RANGE_4000_DPS:
     */
-    sx->setGyroRange(LSM6DS_GYRO_RANGE_250_DPS );
+    //sx->setGyroRange(LSM6DS_GYRO_RANGE_250_DPS );
 
     /*
       Gyroscope Data Rate
@@ -536,16 +675,10 @@ Adafruit_LSM6DSOX init_lsm6dsox (Adafruit_LSM6DSOX *sx) {
         LSM6DS_RATE_3_33K_HZ:
         LSM6DS_RATE_6_66K_HZ:
     */
-    sx->setGyroDataRate(LSM6DS_RATE_12_5_HZ);
+    //sx->setGyroDataRate(LSM6DS_RATE_12_5_HZ);
   } else {
-    Serial.println();
-    Serial.println("Failed to find the LSM6DSOX IMU!");
-    Serial.println();
-
-    halt();
+    halt("Failed to initialize the LSM6DSOX IMU!");
   }
-
-  return *sx;
 }
 
 /*
@@ -626,9 +759,13 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
   while (wifi_status != WL_CONNECTED and (connect_count < max_nr_connects)) {
     connect_count += 1;
 
+    if (connect_count > 1) {
+      blink_led_raspi(LED_RASPI_WIFI_PIN, 500, connect_count);
+    }
+
     Serial.print("Attempt #");
     Serial.print(connect_count);
-    Serial.print(" to connect to the '");
+    Serial.print(" connecting to the '");
     Serial.print(ssid);
     Serial.println("' network");
 
@@ -654,6 +791,10 @@ bool connect_to_wifi (char *ssid, char *passwd, uint8_t connection_timeout_ms=CO
     }
   } else {
     connected = false;
+  }
+
+  if (!connected) {
+    halt("Unable to connect to the network", true, ssid);
   }
 
   return connected;
@@ -707,6 +848,19 @@ void init_leds (uint8_t nr_of_leds=NUMBER_OF_LEDS, uint8_t blink_delay_ms=DEFAUL
   Serial.print("There are ");
   Serial.print(nr_of_leds);
   Serial.println(" LEDs (Digital Output)");
+
+  //  Initialize the Raspberry Pi GPIO pins
+  pinMode(LED_RASPI_CONNECT_PIN, OUTPUT);             //  ON = Good WiFi connection
+  digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
+  blink_led_raspi(LED_RASPI_CONNECT_PIN, 250, 3);
+
+  pinMode(LED_RASPI_WIFI_PIN, OUTPUT);                //  When connecting to WiFi, blinks the number
+  digitalWrite(LED_RASPI_WIFI_PIN, LOW);              //    of attempts that have been made if > 1
+  blink_led_raspi(LED_RASPI_WIFI_PIN, 250, 3);
+
+  pinMode(LED_RASPI_HALT_PIN, OUTPUT);                //  Blinks steady when a WiFi connection
+  digitalWrite(LED_RASPI_HALT_PIN, LOW);              //    was not made
+  blink_led_raspi(LED_RASPI_HALT_PIN, 250, 3);
 }
 
 /*
@@ -816,8 +970,7 @@ void init_html (uint8_t max_pages=MAX_NUM_PAGES) {
         PAGE_HTML[PAGE_IMU] = html;
         break;
       default:
-        Serial.println("Page ID out of bounds!");
-        halt();
+        halt("Web Page ID is out of bounds!");
         break;
     }
   }
@@ -860,9 +1013,8 @@ Environment_Data check_data (Environment_Data curr_data) {
   Get readings from the LIS3MDL Magnetometer and put them in the environment
     data structure.
 */
-Environment_Data get_lis3mdl (Environment_Data curr_data, Adafruit_LIS3MDL *lis3) {
+Environment_Data get_lis3mdl (Environment_Data curr_data, Environment_Data *lis3) {
   Environment_Data sensors;
-  sensors_event_t event; 
 
   sensors = check_data(curr_data);
 
@@ -885,21 +1037,46 @@ String imu_format_xyz_html (Three_Axis readings) {
   Get readings from the LSM6DSOX IMU and put them in the environment
     data structure.
 */
-Environment_Data get_lsm6dsox (Environment_Data curr_data, Adafruit_LSM6DSOX *sx) {
+Environment_Data get_lsm6dsox (Environment_Data curr_data) {
   Environment_Data sensors;
-  sensors_event_t accel, gyro, temperature, mag;
+  float x, y, z;
+  float temperature = 0.0;
 
   sensors = check_data(curr_data);
 
-  sx->getEvent(&accel, &gyro, &temperature);
+  if (IMU.accelerationAvailable()) {
+    IMU.readAcceleration(x, y, z);
 
-  sensors.accelerometer.x = accel.acceleration.x;
-  sensors.accelerometer.y = accel.acceleration.y;
-  sensors.accelerometer.z = accel.acceleration.z;
-  sensors.gyroscope.x = gyro.gyro.x;
-  sensors.gyroscope.y = gyro.gyro.y;
-  sensors.gyroscope.z = gyro.gyro.z;
-  sensors.temperature = temperature.temperature;
+    sensors.accelerometer.x = x;
+    sensors.accelerometer.y = y;
+    sensors.accelerometer.z = z;
+
+    Serial.print("Accelerometer sample rate = ");
+    Serial.print(IMU.accelerationSampleRate());
+    Serial.println(" Hz");
+  }
+
+  if (IMU.gyroscopeAvailable()) {
+    IMU.readGyroscope(x, y, z);
+
+    sensors.gyroscope.x = x;
+    sensors.gyroscope.y = y;
+    sensors.gyroscope.z = z;
+
+    Serial.print("Gyroscope sample rate = ");
+    Serial.print(IMU.gyroscopeSampleRate());
+    Serial.println(" Hz");
+  }
+
+  if (IMU.temperatureAvailable()) {
+    IMU.readTemperatureFloat(temperature);
+
+    sensors.temperature = temperature;
+  }
+
+  if (USING_LIS3MDL_MAG) {
+
+  }
 
   return sensors;
 }
@@ -1036,10 +1213,16 @@ void setup (void) {
   Serial.begin(115200);
   delay(5000);
 
+  //  Start the I2C bus
+  Wire.begin();
+
   //  Wait for the serial port to stabilize
   //while(!Serial) {
   //  delay(10);
   //}
+  //  Start the I2C bus
+  RSHC_I2C.begin();
+  Wire.begin();
 
   Serial.print(ROBOT_DEVICE_NAME);
   Serial.print(", Version ");
@@ -1058,10 +1241,6 @@ void setup (void) {
   pinMode(LED_RASPI_CONNECT_PIN, OUTPUT);
   pinMode(LED_RASPI_WIFI_PIN, OUTPUT);
   pinMode(LED_RASPI_HALT_PIN, OUTPUT);
-
-  digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
-  digitalWrite(LED_RASPI_WIFI_PIN, LOW);
-  digitalWrite(LED_RASPI_HALT_PIN, LOW);
 
   //  Initialize the RGB LED - Set pins to be outputs
   pinMode(LEDR, OUTPUT);
@@ -1100,7 +1279,11 @@ void setup (void) {
 
     //  Initialize the LSM6DSOX IMU
     if (USING_LSM6DSOX_LIS3MDL_IMU) {  
-      sox = init_lsm6dsox(&sox);
+      if (IMU.begin()) {
+        Serial.println("Found an LSM6DSOX IMU");
+      } else {
+        halt("Failed to initialize IMU!");
+      }
     }
 
     //  Initialize the LIS3MDL Magnetometer
@@ -1153,9 +1336,7 @@ void setup (void) {
             break;
         }
       } else {
-        Serial.println("Unable to find the VEML7700 sensor!");
-
-        halt();
+        halt("Unable to find the VEML7700 sensor!");
       }
     }
 
@@ -1167,7 +1348,7 @@ void setup (void) {
     //  Start the Real Time Clock and set the current time
     Serial.println("Starting the RTC");
     RTC.begin();
-    set_rtc(UTC_OFFSET_HRS, &time_client);
+    set_clock(UTC_OFFSET_HRS, &time_client);
     RTC.getTime(current_time);
 
     Serial.println();
@@ -1180,12 +1361,7 @@ void setup (void) {
     server.begin(WEB_SERVER_PORT);
     Serial.println();
   } else {
-    Serial.println();
-    Serial.print("Unable to connect to the '");
-    Serial.print(ssid);
-    Serial.println("' network!");
-
-    halt();
+    halt("Unable to connect to network", true, ssid);
   }
 }
 
@@ -1200,6 +1376,7 @@ void loop (void) {
   String HTTP_req, html = "", date_time = "", temp_html = "", led_html = "";
   String potentiometer_units;
 
+  //  Heartbeat
   blink_rgb(blue);
 
   Serial.println();
@@ -1426,7 +1603,7 @@ void loop (void) {
         case PAGE_IMU:
           html = PAGE_HTML[PAGE_IMU]; //String(HTML_CONTENT_IMU);
           date_time = timestamp(&time_client, SHOW_FULL_DATE, SHOW_12_HOURS, SHOW_LONG_DATE, SHOW_SECONDS);
-          sensors = get_lsm6dsox(sensors, &sox);
+          sensors = get_lsm6dsox(sensors);
 
           //  Replace the markers by real values
           //html.replace("PAGE_IMU_TITLE_MARKER", PAGE_IMU_TITLE);
@@ -1491,25 +1668,18 @@ void loop (void) {
   //  Check to be sure we still have a WiFi connection
   wifi_status = WiFi.status();
 
-  if ((wifi_status != WL_CONNECTED) and (wifi_status != WL_IDLE_STATUS)) {
+  if (wifi_status != WL_CONNECTED) {
     Serial.println("Lost WiFi connection - attempting to reconnect!");
     digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
     digitalWrite(LED_RASPI_WIFI_PIN, HIGH);
+
     connected = connect_to_wifi(ssid, passwd);
 
     if (connected) {
       digitalWrite(LED_RASPI_CONNECT_PIN, HIGH);
       digitalWrite(LED_RASPI_WIFI_PIN, LOW);
     } else {
-      Serial.println();
-      Serial.print("Unable to reconnect to the '");
-      Serial.print(ssid);
-      Serial.println("' network!");
-
-      digitalWrite(LED_RASPI_CONNECT_PIN, LOW);
-      digitalWrite(LED_RASPI_WIFI_PIN, LOW);
-
-      halt();
+      halt("Unable to reconnect to the network", true, ssid);
     }
   }
 

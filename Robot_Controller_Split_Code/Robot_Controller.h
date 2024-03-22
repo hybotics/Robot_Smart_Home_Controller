@@ -1,3 +1,10 @@
+/*
+ *
+ *  Copyright (c) by Dale Weber <hybotics@hybotics.dev> 2024
+*/
+#ifndef ROBOT_CONTROLLER_H
+#define ROBOT_CONTROLLER_H
+
 #if defined(ARDUINO_PORTENTA_C33)
 #include <WiFiC3.h>
 #elif defined(ARDUINO_UNOWIFIR4)
@@ -5,18 +12,16 @@
 #endif
 
 #define ROBOT_DEVICE_NAME           "Robot Smart Home Controller"
-#define ROBOT_DEVICE_VERSION        "0.4.4"
-#define ROBOT_DEVICE_DATE           "13-Mar-2024"
+#define ROBOT_DEVICE_VERSION        "0.4.5"
+#define ROBOT_DEVICE_DATE           "15-Mar-2024"
 
 
-//#define SCRIPT_WORK_TEXT            " WIP 2"
-#define SKETCH_ID_CODE              "Robot Smart Home Controller WIP 2"
+#define SKETCH_ID_CODE              "Robot Smart Home Controller Split Code"
 
 //  Sketch control - turn on (true) or off (false) as needed.
 #define USING_SHT45_TEMP            true
-#define USING_LSM6DSOX_LIS3MDL_IMU  false
 #define USING_LIS3MDL_MAG           false
-#define USING_VEML_LUX              false
+#define USING_VEML_LUX              true
 
 #if (USING_LSM6DSOX_LIS3MDL_IMU)
 #define USING_LIS3MDL_MAG           true
@@ -26,9 +31,9 @@
   Sketch control - turn on (true) or off (false) as needed.
 */
 #define USING_SHT45_TEMP            true
-#define USING_LSM6DSOX_LIS3MDL_IMU  false
+#define USING_LSM6DSOX_LIS3MDL_IMU  true
 #define USING_LIS3MDL_MAG           false
-#define USING_VEML_LUX              false
+#define USING_VEML_LUX              true
 
 #if (USING_LSM6DSOX_LIS3MDL_IMU)
 #define USING_LIS3MDL_MAG           true
@@ -49,7 +54,7 @@
 #define SHOW_NORMAL_TIME          false
 #define SHOW_SECONDS              true
 
-#define UTC_OFFSET_HRS            -8
+#define UTC_OFFSET_HRS            -7
 
 /*
   Maximum voltage to be read from analog pins in volts
@@ -81,11 +86,11 @@
 #define SEVENZYYEARS              2208988800UL
 //////////////////////////////////////////////
 
-#define PIEZO_BUZZER_PIN          D6          //  PWM
+#define PIEZO_BUZZER_PIN          D5          //  PWM
 
-#define LED_RASPI_HALT_PIN        GPIO_21     //  Red - Unable to connect to WiFi
-#define LED_RASPI_CONNECT_PIN     GPIO_20     //  Green - Connected to WiFi
-#define LED_RASPI_WIFI_PIN        GPIO_16     //  Yellow - Lost WiFi connection
+#define LED_RASPI_CONNECT_PIN     GPIO_21     //  Green - Connected to WiFi
+#define LED_RASPI_WIFI_PIN        GPIO_20     //  Yellow - Lost WiFi connection
+#define LED_RASPI_HALT_PIN        GPIO_19     //  Red - Unable to connect to WiFi
 
 #define ANALOG_POT_PIN            A0
 #define ANALOG_POT_NUMBER          0
@@ -114,7 +119,7 @@
 /*
   Switches
 */
-#define SWITCH_WHITE_PIN          D5          //  A0 Works Raspberry Pi 07 (White)
+#define SWITCH_WHITE_PIN          --          //  A0 Works Raspberry Pi 07 (White)
 #define SWITCH_BLUE_PIN           D6          //  A1 Works Raspberry Pi 29 (Blue)
 #define SWITCH_RED_PIN            D7          //  A2 Works Raspberry Pi 31 (Red)
 #define SWITCH_YELLOW_PIN         A3          //  Works   Raspberry Pi 32 (Yellow)
@@ -189,3 +194,5 @@ ColorRGB  blue = {HIGH, HIGH, LOW, true, true, false};
 ColorRGB  magenta = {LOW, HIGH, LOW, false, true, false};
 ColorRGB  orange = {LOW, LOW, HIGH, false, false, true};
 ColorRGB  yellow = {HIGH, LOW, LOW, false, false, true};
+
+#endif

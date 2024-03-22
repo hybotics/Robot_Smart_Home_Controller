@@ -4,7 +4,14 @@
  * This example code is in the public domain
  *
  * Tutorial page: https://arduinogetstarted.com/tutorials/arduino-web-server-multiple-pages
- */
+  *
+ *  Modifed by Dale Weber <hybotics@hybotics.dev>
+ *
+ *  Copyright (c) by Dale Weber <hybotics@hybotics.dev> 2024
+*/
+
+#ifndef LIGHT_H
+#define LIGHT_H
 
 const char *HTML_CONTENT_LIGHT = R""""(
 <!DOCTYPE html>
@@ -22,3 +29,5 @@ const char *HTML_CONTENT_LIGHT = R""""(
 </BODY>
 </HTML>
 )"""";
+
+#endif

@@ -4,7 +4,14 @@
  * This example code is in the public domain
  *
  * Tutorial page: https://arduinogetstarted.com/tutorials/arduino-web-server-multiple-pages
- */
+  *
+ *  Modifed by Dale Weber <hybotics@hybotics.dev>
+ *
+ *  Copyright (c) by Dale Weber <hybotics@hybotics.dev> 2024
+*/
+
+#ifndef IMU_H
+#define IMU_H
 
 const char *HTML_CONTENT_IMU = R""""(
 <!DOCTYPE html>
@@ -25,3 +32,5 @@ const char *HTML_CONTENT_IMU = R""""(
 </BODY>
 </HTML>
 )"""";
+
+#endif

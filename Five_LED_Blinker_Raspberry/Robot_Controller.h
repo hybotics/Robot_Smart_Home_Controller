@@ -85,7 +85,9 @@
 
 #define PIEZO_BUZZER_PIN          D6          //  PWM
 
-#define LED_RASPI_PIN             GPIO_21
+#define LED_RASPI_HALT_PIN        GPIO_21     //  Red - Unable to connect to WiFi
+#define LED_RASPI_CONNECT_PIN     GPIO_20     //  Green - Connected to WiFi
+#define LED_RASPI_WIFI_PIN        GPIO_19     //  Yellow - Lost WiFi connection
 
 #define ANALOG_POT_PIN            A0
 #define ANALOG_POT_NUMBER          0
