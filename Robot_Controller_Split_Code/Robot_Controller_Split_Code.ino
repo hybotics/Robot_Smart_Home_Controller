@@ -17,7 +17,7 @@
 #include  "Arduino_HAT_Carrier.h"
 
 #include  "index.h"
-#include  "Environment.h"
+#include  "environment.h"
 #include  "switches.h"
 #include  "potentiometer.h"
 #include  "light.h"
