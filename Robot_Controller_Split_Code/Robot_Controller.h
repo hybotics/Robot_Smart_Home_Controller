@@ -119,7 +119,7 @@
 /*
   Switches
 */
-#define SWITCH_WHITE_PIN          --          //  A0 Works Raspberry Pi 07 (White)
+#define SWITCH_WHITE_PIN          D5          //  A0 Works Raspberry Pi 07 (White)
 #define SWITCH_BLUE_PIN           D6          //  A1 Works Raspberry Pi 29 (Blue)
 #define SWITCH_RED_PIN            D7          //  A2 Works Raspberry Pi 31 (Red)
 #define SWITCH_YELLOW_PIN         A3          //  Works   Raspberry Pi 32 (Yellow)

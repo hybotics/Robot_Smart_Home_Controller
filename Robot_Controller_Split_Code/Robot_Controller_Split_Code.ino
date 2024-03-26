@@ -52,10 +52,8 @@ NTPClient time_client(Udp);
 
 #include <Adafruit_Sensor.h>
 
-#include <LIS3MDL.h>
-LIS3MDL::vector<int16_t> m_min = {-32767, -32767, -32767};
-LIS3MDL::vector<int16_t> m_max = {+32767, +32767, +32767};
-LIS3MDL lis3;
+#include <Adafruit_LIS3MDL.h>
+Adafruit_LIS3MDL lis3;
 
 #include "Adafruit_SHT4x.h"
 Adafruit_SHT4x sht4 = Adafruit_SHT4x();
@@ -493,12 +491,11 @@ Adafruit_SHT4x init_sht4x (Adafruit_SHT4x *sht) {
 /*
   Initialize the SHT45 Temeprature and Humidity sensor
 */
-LIS3MDL init_lis3mdl (Environment_Data curr_data, LIS3MDL *lis3) {
+Adafruit_LIS3MDL init_lis3mdl (Environment_Data curr_data, Adafruit_LIS3MDL *lis3) {
   // Try to initialize!
-  if (lis3->init()) {          // hardware I2C mode, can pass in address & alt Wire
-    Serial.println("LIS3MDL Found!");
+  if (lis3->begin_I2C()) {          // hardware I2C mode, can pass in address & alt Wire
+    Serial.println("Found the LIS3MDL Magnetometer!");
 
-    lis3->enableDefault();
     /*  
       Magnetometer Performance Mode
 
@@ -508,7 +505,7 @@ LIS3MDL init_lis3mdl (Environment_Data curr_data, LIS3MDL *lis3) {
         LIS3MDL_HIGHMODE:
         LIS3MDL_ULTRAHIGHMODE:
     */
-    //lis3->setPerformanceMode(LIS3MDL_LOWPOWERMODE);
+    lis3->setPerformanceMode(LIS3MDL_LOWPOWERMODE);
 
     /*
       Magnetometer Operation Mode
@@ -520,10 +517,10 @@ LIS3MDL init_lis3mdl (Environment_Data curr_data, LIS3MDL *lis3) {
         LIS3MDL_SINGLEMODE:
         LIS3MDL_POWERDOWNMODE:
     */
-    //lis3->setOperationMode(LIS3MDL_CONTINUOUSMODE);
+    lis3->setOperationMode(LIS3MDL_CONTINUOUSMODE);
 
     //Serial.print("Operation mode set to: ");
-    //lis3->setDataRate(LIS3MDL_DATARATE_155_HZ);
+    lis3->setDataRate(LIS3MDL_DATARATE_155_HZ);
     // You can check the datarate by looking at the frequency of the DRDY pin
     //Serial.print("Data rate set to: ");
 /*
@@ -1013,9 +1010,9 @@ Environment_Data check_data (Environment_Data curr_data) {
   Get readings from the LIS3MDL Magnetometer and put them in the environment
     data structure.
 */
-Environment_Data get_lis3mdl (Environment_Data curr_data, Environment_Data *lis3) {
+Environment_Data get_lis3mdl (Environment_Data curr_data, Adafruit_LIS3MDL*lis3) {
   Environment_Data sensors;
-
+  sensors_event_t event;
   sensors = check_data(curr_data);
 
   lis3->getEvent(&event);
@@ -1288,7 +1285,7 @@ void setup (void) {
 
     //  Initialize the LIS3MDL Magnetometer
     if (USING_LIS3MDL_MAG) {
-      lis3 = init_lis3mdl(&lis3);
+      lis3 = init_lis3mdl(sensors, &lis3);
     }
 
     //  Initialize the VEML7700 Light (Lux) sensor
